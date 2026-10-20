@@ -1,4 +1,4 @@
-const ctx = new AudioContext();
+export const ctx = new AudioContext();
 
 const digit = {
     A: 0,
@@ -12,14 +12,14 @@ const master = ctx.createGain();
 const active_oscs = new Set();
 
 
-const standard_pitchmap = [
+export const standard_pitchmap = [
     { min: 0,  max: 16, note_num: 0 },  // C
     { min: 16, max: 32, note_num: 2 },  // D
     { min: 32, max: 48, note_num: 4 },  // E
     { min: 48, max: 64, note_num: 7 },  // G
 ];
 
-const oscillator_map = [
+export const standard_oscillator_map = [
     'sin',
     'triangle',
     'square',
@@ -35,11 +35,11 @@ function base_to_int(letters, digitmap = digit) {
 }
 
 
-function create_reverb_convolver(
-    reverb_duration = 1,
-    reverb_decay = 1,
+export function create_reverb_convolver(
+    reverb_duration = 1.5,
+    reverb_decay = 1.5,
 ) {
-    const length = ctx.sampleRate * this.gap;
+    const length = ctx.sampleRate * reverb_duration;
     const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
 
     for (let channel = 0; channel < 2; ch++) {
@@ -56,8 +56,8 @@ function create_reverb_convolver(
 }
 
 
-class CodonNote {
-    constructor(seq, octave = 4, gapscale = 0.065, pitchmap = standard_pitchmap, oscmap = oscillator_map) {
+export class CodonNote {
+    constructor(seq, octave = 4, gapscale = 0.065, pitchmap = standard_pitchmap, oscmap = standard_oscillator_map) {
         this.pitch_point = base_to_int(seq.slice(0, 3));
         const map = pitchmap.find(dict => this.pitch_point >= dict.min && this.pitch_point < dict.max);
 
@@ -124,7 +124,7 @@ class CodonNote {
 }
 
 
-class Sequence {
+export class Sequence {
     constructor() {
         this.sequence = [];
         this.reverb_convolver = create_reverb_convolver();
@@ -184,7 +184,7 @@ class Sequence {
 }
 
 
-function master_stop(fadeout = 0.02) {
+export function master_stop(fadeout = 0.02) {
     master.gain.cancelScheduledValues(ctx.currentTime);
     master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
     master.gain.linearRampToValueAtTime(0, ctx.currentTime + fadeout);

@@ -10,6 +10,7 @@ const digit = {
 
 const master = ctx.createGain();
 const active_oscs = new Set();
+master.connect(ctx.destination);
 
 
 export const standard_pitchmap = [
@@ -26,7 +27,13 @@ export const standard_oscillator_map = [
     'sawtooth'
 ]
 
-function base_to_int(letters, digitmap = digit) {
+
+export function midi_to_freq(midi_num) {
+    return 440 * Math.pow(2, (midi_num-69) / 12);
+}
+
+
+export function base_to_int(letters, digitmap = digit) {
     let num = 0;
     for (const base of letters) {
         num = num * 4 + digitmap[base];
@@ -42,7 +49,7 @@ export function create_reverb_convolver(
     const length = ctx.sampleRate * reverb_duration;
     const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
 
-    for (let channel = 0; channel < 2; ch++) {
+    for (let channel = 0; channel < 2; channel++) {
         const data = impulse.getChannelData(channel);
         for (let i = 0; i < length; i++) {
             data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, reverb_decay);
@@ -62,7 +69,7 @@ export class CodonNote {
         const map = pitchmap.find(dict => this.pitch_point >= dict.min && this.pitch_point < dict.max);
 
         this.note_num = (1 + octave) * 12 + map.note_num;
-        this.gap = base_to_int(seq.slice(3, 5)) * gapscale;
+        this.gap = Math.max(base_to_int(seq.slice(3, 5)) * gapscale, 2 * gapscale);
         this.osc_type = oscmap[base_to_int(seq.slice(5, 6))];
     }
 
@@ -80,12 +87,12 @@ export class CodonNote {
     ) {
        
         const osc = ctx.createOscillator();
-        osc.frequency.value = midiToFreq(this.note_num);
+        osc.frequency.value = midi_to_freq(this.note_num);
         
         const mastergain = ctx.createGain();
         
         if (reverb_convolver === null) {
-            osc.connect(mastergain).connect(ctx.destination);
+            osc.connect(mastergain).connect(master);
 
         } else {
             const reverb_master_gain = ctx.createGain();
@@ -94,8 +101,8 @@ export class CodonNote {
             reverb_dry_gain.gain.value = reverb_dry;
             reverb_wet_gain.gain.value = reverb_wet;
 
-            reverb_master_gain.connect(reverb_dry_gain).connect(ctx.destination);
-            reverb_master_gain.connect(reverb_convolver).connect(reverb_wet_gain).connect(ctx.destination);
+            reverb_master_gain.connect(reverb_dry_gain).connect(master);
+            reverb_master_gain.connect(reverb_convolver).connect(reverb_wet_gain).connect(master);
 
             osc.connect(mastergain).connect(reverb_master_gain);
         }
@@ -112,10 +119,10 @@ export class CodonNote {
 
         if (enable_fadeout) {
             mastergain.gain.setValueAtTime(value, start + this.gap - fadein - fadeout);
-            mastergain.gain.exponentialRampToValueAtTime(0, start + this.gap);
+            mastergain.gain.exponentialRampToValueAtTime(0.0001, start + this.gap);
         }
 
-        osc.start();
+        osc.start(start);
         osc.stop(start + this.gap);
 
         active_oscs.add(osc);
@@ -135,14 +142,15 @@ export class Sequence {
     }
 
     parse_codonnote(sequence, octave=4, implant = true) {
+        sequence = sequence.toUpperCase();
+
         if (sequence.length === 0 || sequence.length % 6 !== 0 || !/^[ACGT]+$/.test(sequence)) {
             return null;
         }
         
-        sequence = sequence.toUpperCase();
         let parsed_sequence = [];
 
-        for (const i=0; i<sequence.length/6; i++) {
+        for (let i=0; i<sequence.length/6; i++) {
             const sliced = sequence.slice(i*6, i*6+6);
             parsed_sequence.push(
                 new CodonNote(sliced, octave)
@@ -166,9 +174,9 @@ export class Sequence {
             const prev_notenum = this.sequence[index-1].note_num;
 
             if (this_notenum < prev_notenum) {
-                codonnote.note_num = Math.min(this_notenum, prev_notenum + maxgap);
-            } else {
                 codonnote.note_num = Math.max(this_notenum, prev_notenum - maxgap);
+            } else {
+                codonnote.note_num = Math.min(this_notenum, prev_notenum + maxgap);
             }
         }
     }
@@ -194,4 +202,9 @@ export function master_stop(fadeout = 0.02) {
     }
 
     // active_oscs.clear();
+}
+
+
+export function master_reset() {
+    master.gain.value = 1;
 }

@@ -1,8 +1,8 @@
-import { ctx, CodonNote, Sequence, master_stop } from "./symphoner";
+import { ctx, master_reset, Sequence, master_stop } from "./symphoner.js";
 
 let is_started = false
 const seq = new Sequence();
-seq.parse_codonnote("ATGCGTTTGCGA");
+seq.parse_codonnote("ATGGCAGCCTGATGGAGG");
 seq.limit_progression();
 
 
@@ -11,6 +11,8 @@ document.getElementById("startbttn").onclick = () => {
         return;
     }
 
+    is_started = true;
+    master_reset();
     seq.schedule_play(ctx.currentTime);
 };
 

@@ -20,11 +20,41 @@ export const standard_pitchmap = [
     { min: 48, max: 64, note_num: 7 },  // G
 ];
 
+
+// http://github.com/GoogleChromeLabs/web-audio-samples/tree/main/src/demos/wavetable-synth/wave-tables
+async function load_gcl_wave_table(url) {
+    const txt = await (await fetch(url)).text();
+    const cleantxt = txt.replace(/'/g, '"').replace(/,\s*([\]}])/g, '$1');
+    return JSON.parse(cleantxt);
+}
+
+const base = "https://raw.githubusercontent.com/GoogleChromeLabs/web-audio-samples/refs/heads/main/src/demos/wavetable-synth/wave-tables/";
+
+const [osc1, osc2, osc3, osc4] = await Promise.all(
+    ["Chorus_Strings", "Organ_3", "Twelve_OpTines", "Celeste"].map(n => load_gcl_wave_table(base + n))
+);
+
+function create_periodic_wave(imag, real = null) {
+    return ctx.createPeriodicWave(
+        real === null ? new Float32Array(imag.length) : new Float32Array(real),
+        new Float32Array(imag)
+    )
+}
+
 export const standard_oscillator_map = [
-    'sin',
-    'triangle',
-    'square',
-    'sawtooth'
+    create_periodic_wave(osc1.imag, osc1.real),
+    create_periodic_wave(osc2.imag, osc2.real),
+    create_periodic_wave(osc3.imag, osc3.real),
+    create_periodic_wave(osc4.imag, osc4.real)
+]
+
+// SHOUTOUT TO: https://github.com/itsmusician/IR-Library
+
+export const standard_ir_map = [
+    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Funny%20Modulated%20Delay%20Room.wav",
+    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Resonant%20Warbled%20Noise%20Decay%201.wav",
+    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Resonant%20Warbled%20Noise%20Decay%202.wav",
+    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Resonant%20Warbled%20Noise%20Decay%203.wav"
 ]
 
 
@@ -42,9 +72,30 @@ export function base_to_int(letters, digitmap = digit) {
 }
 
 
+async function load_reverb_convolver(ctx, url) {
+    try {
+        const res = await fetch(url);
+
+        if (!res.ok) {
+            console.error("FAILED TO LOAD REVERB (" + res.status + ")")
+            return null;
+        }
+
+        const buf = await ctx.decodeAudioData(await res.arrayBuffer());
+        const convolver = ctx.createConvolver();
+
+        convolver.buffer = buf;
+        return convolver;
+    } catch (error) {
+        console.log("ERROR (Probable CORS block) " + error);
+        return null;
+    }
+}
+
+
 export function create_reverb_convolver(
-    reverb_duration = 1.5,
-    reverb_decay = 1.5,
+    reverb_duration = 3,
+    reverb_decay = 3,
 ) {
     const length = ctx.sampleRate * reverb_duration;
     const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
@@ -64,19 +115,20 @@ export function create_reverb_convolver(
 
 
 export class CodonNote {
-    constructor(seq, octave = 4, gapscale = 0.065, pitchmap = standard_pitchmap, oscmap = standard_oscillator_map) {
+    constructor(seq, octave = 4, gapscale = 0.05, pitchmap = standard_pitchmap, oscmap = standard_oscillator_map) {
         this.pitch_point = base_to_int(seq.slice(0, 3));
         const map = pitchmap.find(dict => this.pitch_point >= dict.min && this.pitch_point < dict.max);
 
         this.note_num = (1 + octave) * 12 + map.note_num;
         this.gap = Math.max(base_to_int(seq.slice(3, 5)) * gapscale, 2 * gapscale);
-        this.osc_type = oscmap[base_to_int(seq.slice(5, 6))];
+        this.color = base_to_int(seq.slice(5,6));
+        this.osc_periodic_wave = oscmap[this.color];
     }
 
 
     schedule_play(
         start,
-        value = 0.35,
+        value = 0.5,
         enable_fadein = true,
         fadein = 0.015,
         enable_fadeout = true,
@@ -87,13 +139,14 @@ export class CodonNote {
     ) {
        
         const osc = ctx.createOscillator();
+        osc.setPeriodicWave(this.osc_periodic_wave)
         osc.frequency.value = midi_to_freq(this.note_num);
         
         const mastergain = ctx.createGain();
         
         if (reverb_convolver === null) {
             osc.connect(mastergain).connect(master);
-
+            
         } else {
             const reverb_master_gain = ctx.createGain();
             const reverb_dry_gain = ctx.createGain();
@@ -133,12 +186,34 @@ export class CodonNote {
 
 export class Sequence {
     constructor() {
-        this.sequence = [];
-        this.reverb_convolver = create_reverb_convolver();
+        this.base_sequence = [];
+        this.errors = [];
+        this.irs = [null, null, null, null];
+    }
+
+
+    async implant_irs(ir_map = standard_ir_map) {
+        for (let i = 0; i<4; i++) {
+            const convolver = load_reverb_convolver(ctx, ir_map[i]);
+            
+            if (convolver === null) {
+                this.errors.push("FAILED TO FETCH REVERB");
+                this.irs[i] = null;
+            }
+
+            this.irs[i] = convolver;
+        }
+    }
+
+
+    fetch_errors() {
+        const errs = [...this.errors];
+        this.errors.clear()
+        return errs;
     }
 
     append_codonnote(codonnote) {
-        this.sequence.push(codonnote);
+        this.base_sequence.push(codonnote);
     }
 
     parse_codonnote(sequence, octave=4, implant = true) {
@@ -158,25 +233,32 @@ export class Sequence {
         }
 
         if (implant) {
-            this.sequence.push(...parsed_sequence);
+            this.base_sequence.push(...parsed_sequence);
         }
 
         return parsed_sequence;
     }
 
-    limit_progression(maxgap = 7) {
-        for (const [index, codonnote] of this.sequence.entries()) {
+    limit_progression(
+        notenum_maxgap = 7,
+        gap_maxdev = 0.065
+    ) {
+        const gap_maxgap = gap_maxdev + (this.base_sequence.reduce((accu, curr) => accu + curr.gap, 0) / this.base_sequence.length);
+
+        for (const [index, codonnote] of this.base_sequence.entries()) {
             if (index === 0) {
                 continue;
             }
 
             const this_notenum = codonnote.note_num;
-            const prev_notenum = this.sequence[index-1].note_num;
+            const prev_notenum = this.base_sequence[index-1].note_num;
+
+            codonnote.gap = Math.min(codonnote.gap, gap_maxgap);
 
             if (this_notenum < prev_notenum) {
-                codonnote.note_num = Math.max(this_notenum, prev_notenum - maxgap);
+                codonnote.note_num = Math.max(this_notenum, prev_notenum - notenum_maxgap);
             } else {
-                codonnote.note_num = Math.min(this_notenum, prev_notenum + maxgap);
+                codonnote.note_num = Math.min(this_notenum, prev_notenum + notenum_maxgap);
             }
         }
     }
@@ -184,8 +266,8 @@ export class Sequence {
     schedule_play(start) {
         let accutime = start;
 
-        for (const codonnote of this.sequence) {
-            codonnote.schedule_play(accutime);
+        for (const codonnote of this.base_sequence) {
+            codonnote.schedule_play(accutime, undefined, undefined, undefined, undefined, undefined, this.irs[codonnote.color]);
             accutime += codonnote.gap;
         }
     }
@@ -207,4 +289,5 @@ export function master_stop(fadeout = 0.02) {
 
 export function master_reset() {
     master.gain.value = 1;
+    active_oscs.clear();
 }

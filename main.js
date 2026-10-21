@@ -2,8 +2,11 @@ import { ctx, master_reset, Sequence, master_stop } from "./symphoner.js";
 
 let is_started = false
 const seq = new Sequence();
-seq.parse_codonnote("ATGGCAGCCTGATGGAGG");
+seq.parse_codonnote(
+  "ATGCGTTTGCGACCATGGAGTCATGGCTACTTAGCACGTACGGATCCATGACGTAACGTT"
+);
 seq.limit_progression();
+await seq.implant_irs();
 
 
 document.getElementById("startbttn").onclick = () => {

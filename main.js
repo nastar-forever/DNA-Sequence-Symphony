@@ -6,7 +6,9 @@ seq.parse_codonnote(
   "ATGCGTTTGCGACCATGGAGTCATGGCTACTTAGCACGTACGGATCCATGACGTAACGTT"
 );
 seq.limit_progression();
-await seq.implant_irs();
+await seq.init_reverbs();
+
+console.log(seq.irs)
 
 
 document.getElementById("startbttn").onclick = () => {

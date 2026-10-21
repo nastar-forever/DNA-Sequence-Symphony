@@ -8,9 +8,9 @@ const digit = {
 };
 
 
-const master = ctx.createGain();
+const absolute_master = ctx.createGain();
 const active_oscs = new Set();
-master.connect(ctx.destination);
+absolute_master.connect(ctx.destination);
 
 
 export const standard_pitchmap = [
@@ -50,26 +50,12 @@ export const standard_oscillator_map = [
 
 // SHOUTOUT TO: https://github.com/itsmusician/IR-Library
 
-export const standard_ir_map = [
+const standard_ir_urls = [
     "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Funny%20Modulated%20Delay%20Room.wav",
     "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Resonant%20Warbled%20Noise%20Decay%201.wav",
     "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Resonant%20Warbled%20Noise%20Decay%202.wav",
     "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Resonant%20Warbled%20Noise%20Decay%203.wav"
 ]
-
-
-export function midi_to_freq(midi_num) {
-    return 440 * Math.pow(2, (midi_num-69) / 12);
-}
-
-
-export function base_to_int(letters, digitmap = digit) {
-    let num = 0;
-    for (const base of letters) {
-        num = num * 4 + digitmap[base];
-    }
-    return num;
-}
 
 
 async function load_reverb_convolver(ctx, url) {
@@ -93,9 +79,28 @@ async function load_reverb_convolver(ctx, url) {
 }
 
 
+export const standard_ir_map = await Promise.all(
+    standard_ir_urls.map(url => load_reverb_convolver(ctx, url))
+);
+
+
+export function midi_to_freq(midi_num) {
+    return 440 * Math.pow(2, (midi_num-69) / 12);
+}
+
+
+export function base_to_int(letters, digitmap = digit) {
+    let num = 0;
+    for (const base of letters) {
+        num = num * 4 + digitmap[base];
+    }
+    return num;
+}
+
+
 export function create_reverb_convolver(
-    reverb_duration = 3,
-    reverb_decay = 3,
+    reverb_duration = 0.1,
+    reverb_decay = 0.1,
 ) {
     const length = ctx.sampleRate * reverb_duration;
     const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
@@ -114,8 +119,31 @@ export function create_reverb_convolver(
 }
 
 
+export class Reverb {
+    constructor (
+        ir_convolver,
+        wet=0.3,
+        dry=0.7,
+        decay=0.1
+    ) {
+        this.ir = ir_convolver;
+        this.wet = ctx.createGain();
+        this.dry = ctx.createGain();
+
+        this.wet.value = wet;
+        this.dry.value = dry;
+        this.decay = decay;
+    }
+
+    connect (from, to) {
+        from.connect(this.dry).connect(to);
+        from.connect(this.ir).connect(this.wet).connect(to);
+    }
+}
+
+
 export class CodonNote {
-    constructor(seq, octave = 4, gapscale = 0.05, pitchmap = standard_pitchmap, oscmap = standard_oscillator_map) {
+    constructor(seq, octave = 4, gapscale = 0.07, pitchmap = standard_pitchmap, oscmap = standard_oscillator_map) {
         this.pitch_point = base_to_int(seq.slice(0, 3));
         const map = pitchmap.find(dict => this.pitch_point >= dict.min && this.pitch_point < dict.max);
 
@@ -128,87 +156,85 @@ export class CodonNote {
 
     schedule_play(
         start,
-        value = 0.5,
+        value = 0.2,
         enable_fadein = true,
         fadein = 0.015,
         enable_fadeout = true,
         fadeout = 0.015,
-        reverb_convolver = null,
-        reverb_dry = 0.7,
-        reverb_wet = 0.3
+        reverb = null
     ) {
-       
         const osc = ctx.createOscillator();
-        osc.setPeriodicWave(this.osc_periodic_wave)
+        osc.setPeriodicWave(this.osc_periodic_wave);
         osc.frequency.value = midi_to_freq(this.note_num);
         
-        const mastergain = ctx.createGain();
-        
-        if (reverb_convolver === null) {
-            osc.connect(mastergain).connect(master);
-            
+        const notegain = ctx.createGain();
+        osc.connect(notegain);
+
+        if (reverb !== null) {
+            reverb.connect(notegain, absolute_master); // THIS IS a Reverb class
         } else {
-            const reverb_master_gain = ctx.createGain();
-            const reverb_dry_gain = ctx.createGain();
-            const reverb_wet_gain = ctx.createGain();
-            reverb_dry_gain.gain.value = reverb_dry;
-            reverb_wet_gain.gain.value = reverb_wet;
-
-            reverb_master_gain.connect(reverb_dry_gain).connect(master);
-            reverb_master_gain.connect(reverb_convolver).connect(reverb_wet_gain).connect(master);
-
-            osc.connect(mastergain).connect(reverb_master_gain);
+            notegain.connect(absolute_master);
         }
-
 
         if (enable_fadein) {
-            mastergain.gain.setValueAtTime(0, start);
-            mastergain.gain.linearRampToValueAtTime(value, start + fadein);
+            if (enable_fadein) {
+                notegain.gain.setValueAtTime(0, start);
+                notegain.gain.linearRampToValueAtTime(value, start + fadein);
 
-        } else {
-            mastergain.gain.setValueAtTime(value, start)
-        }
+            } else {
+                notegain.gain.setValueAtTime(value, start)
+            }
 
 
-        if (enable_fadeout) {
-            mastergain.gain.setValueAtTime(value, start + this.gap - fadein - fadeout);
-            mastergain.gain.exponentialRampToValueAtTime(0.0001, start + this.gap);
+            if (enable_fadeout) {
+                notegain.gain.setValueAtTime(value, start + this.gap - fadein - fadeout);
+                notegain.gain.exponentialRampToValueAtTime(0.0001, start + this.gap);
+            }
+
+            osc.start(start);
+            osc.stop(start + this.gap);
+
+            active_oscs.add(osc);
+            osc.onended = () => active_oscs.delete(osc);
         }
 
         osc.start(start);
         osc.stop(start + this.gap);
 
         active_oscs.add(osc);
-        osc.onended = () => active_oscs.delete(osc);
+        osc.onended = () => {
+            active_oscs.clear();
+            notegain.disconnect();
+        };
     }
 }
+
+
+export const standard_reverb_profiles = standard_ir_map.map(val => new Reverb(val))
 
 
 export class Sequence {
     constructor() {
         this.base_sequence = [];
         this.errors = [];
-        this.irs = [null, null, null, null];
+        this.reverbs = [null, null, null, null];
     }
 
 
-    async implant_irs(ir_map = standard_ir_map) {
-        for (let i = 0; i<4; i++) {
-            const convolver = load_reverb_convolver(ctx, ir_map[i]);
-            
-            if (convolver === null) {
-                this.errors.push("FAILED TO FETCH REVERB");
-                this.irs[i] = null;
-            }
-
-            this.irs[i] = convolver;
-        }
+    async init_reverbs(
+        reverb_profiles = standard_reverb_profiles
+    ) {
+        this.reverbs = reverb_profiles;
+        
+        this.reverbs.forEach((ir, index) => {
+            if (ir===null) this.errors.push("FAILED TO FETCH REVERB IR: "+index)}
+        );
     }
 
 
     fetch_errors() {
         const errs = [...this.errors];
-        this.errors.clear()
+        this.errors.length = 0;
         return errs;
     }
 
@@ -267,7 +293,7 @@ export class Sequence {
         let accutime = start;
 
         for (const codonnote of this.base_sequence) {
-            codonnote.schedule_play(accutime, undefined, undefined, undefined, undefined, undefined, this.irs[codonnote.color]);
+            codonnote.schedule_play(accutime, undefined, undefined, undefined, undefined, undefined, this.reverbs[codonnote.color]);
             accutime += codonnote.gap;
         }
     }
@@ -275,9 +301,9 @@ export class Sequence {
 
 
 export function master_stop(fadeout = 0.02) {
-    master.gain.cancelScheduledValues(ctx.currentTime);
-    master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
-    master.gain.linearRampToValueAtTime(0, ctx.currentTime + fadeout);
+    absolute_master.gain.cancelScheduledValues(ctx.currentTime);
+    absolute_master.gain.setValueAtTime(absolute_master.gain.value, ctx.currentTime);
+    absolute_master.gain.linearRampToValueAtTime(0, ctx.currentTime + fadeout);
 
     for (const osc of active_oscs) {
         osc.stop(ctx.currentTime + fadeout); // Ensure fadeout
@@ -288,6 +314,6 @@ export function master_stop(fadeout = 0.02) {
 
 
 export function master_reset() {
-    master.gain.value = 1;
+    absolute_master.gain.value = 1;
     active_oscs.clear();
 }

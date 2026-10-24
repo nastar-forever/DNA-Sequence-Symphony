@@ -51,10 +51,10 @@ export const standard_oscillator_map = [
 // SHOUTOUT TO: https://github.com/itsmusician/IR-Library
 
 const standard_ir_urls = [
-    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Funny%20Modulated%20Delay%20Room.wav",
-    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Resonant%20Warbled%20Noise%20Decay%201.wav",
-    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Resonant%20Warbled%20Noise%20Decay%202.wav",
-    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Resonant%20Warbled%20Noise%20Decay%203.wav"
+    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Rooms/Commercial/Hotels/Ballrooms/Orlando%20Ballroom%20PA%20Mono.wav",
+    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Rooms/Commercial/Hotels/Ballrooms/Orlando%20Ballroom%20PA%20Mono.wav",
+    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Rooms/Commercial/Hotels/Ballrooms/Orlando%20Ballroom%20PA%20Mono.wav",
+    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Rooms/Commercial/Hotels/Ballrooms/Orlando%20Ballroom%20PA%20Mono.wav"
 ]
 
 
@@ -130,8 +130,8 @@ export class Reverb {
         this.wet = ctx.createGain();
         this.dry = ctx.createGain();
 
-        this.wet.value = wet;
-        this.dry.value = dry;
+        this.wet.gain.value = wet;
+        this.dry.gain.value = dry;
         this.decay = decay;
     }
 
@@ -171,31 +171,23 @@ export class CodonNote {
         osc.connect(notegain);
 
         if (reverb !== null) {
-            reverb.connect(notegain, absolute_master); // THIS IS a Reverb class
+            reverb.connect(notegain, absolute_master); // This is a custom class, okay?
         } else {
             notegain.connect(absolute_master);
         }
 
         if (enable_fadein) {
-            if (enable_fadein) {
-                notegain.gain.setValueAtTime(0, start);
-                notegain.gain.linearRampToValueAtTime(value, start + fadein);
+            notegain.gain.setValueAtTime(0, start);
+            notegain.gain.linearRampToValueAtTime(value, start + fadein);
 
-            } else {
-                notegain.gain.setValueAtTime(value, start)
-            }
+        } else {
+            notegain.gain.setValueAtTime(value, start)
+        }
 
 
-            if (enable_fadeout) {
-                notegain.gain.setValueAtTime(value, start + this.gap - fadein - fadeout);
-                notegain.gain.exponentialRampToValueAtTime(0.0001, start + this.gap);
-            }
-
-            osc.start(start);
-            osc.stop(start + this.gap);
-
-            active_oscs.add(osc);
-            osc.onended = () => active_oscs.delete(osc);
+        if (enable_fadeout) {
+            notegain.gain.setValueAtTime(value, start + this.gap - fadein - fadeout);
+            notegain.gain.exponentialRampToValueAtTime(0.0001, start + this.gap);
         }
 
         osc.start(start);
@@ -309,11 +301,12 @@ export function master_stop(fadeout = 0.02) {
         osc.stop(ctx.currentTime + fadeout); // Ensure fadeout
     }
 
-    // active_oscs.clear();
+    active_oscs.clear();
 }
 
 
 export function master_reset() {
-    absolute_master.gain.value = 1;
+    absolute_master.gain.cancelScheduledValues(0);
+    absolute_master.gain.setValueAtTime(1, ctx.currentTime);
     active_oscs.clear();
 }

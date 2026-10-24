@@ -3,11 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>DNA Symphony</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <button id="startbttn">Start</button>
-    <button id="stopbttn">Stop</button>
+    <div class="screencenter column-input">
+        <h1>Create a symphony by writing a DNA sequence!</h1>
+        <textarea id="dnaentry" placeholder="Enter DNA sequence here..."></textarea>
+
+        <div class="row-input">
+            <button id="playback-button" class="playform"></button> <!--playform and pauseform for determining the form of the button-->
+            <input min="0" max="100" id="playhead" type="range">
+        </div>
+
+        <div id="errbox">
+            <img src="https://static.vecteezy.com/system/resources/previews/023/904/042/original/red-exclamation-mark-icon-circle-isolated-on-white-background-illustration-vector.jpg">
+            <p id="errmsg">ERROR MESSAGE HERE!</p>
+        </div>
+    </div>
+
+    <div id="dnabar"></div>
     <script type="module" src="main.js"></script>
 </body>
 </html>

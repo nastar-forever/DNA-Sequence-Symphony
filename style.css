@@ -1,0 +1,119 @@
+body {
+    font-family: "Consolas", "Times New Roman";
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+h1 {
+    font-weight: lighter;
+    font-size: 4vh;
+    margin-bottom: 4vh;
+}
+
+.dnabar {
+    position: fixed;
+    bottom: 0px;
+    left: 0px;
+}
+
+.column-input {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    align-content: center;
+    width: 60vw;
+}
+
+.row-input {
+    margin-top: 4vh;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+#playhead {
+    width: 30vw;
+    appearance: none;
+    --progress: 0%;
+}
+
+#playhead::-webkit-slider-runnable-track {
+    height: 1vw;
+    border: 1px solid #D41010;
+    border-radius: 0.5vw;
+    background: linear-gradient(to right, #D41010 0%, #D41010 var(--progress), transparent var(--progress));
+}
+
+#playhead::-webkit-slider-thumb {
+    appearance: none;
+    width: 0.52vw;
+    height: 1.72vw;
+    background-color: #D41010;
+    margin-top: -0.36vw;
+    border-radius: 0.1vw;
+}
+
+#playback-button {
+    width: 5vh;
+    height: 5vh;
+    border: 0.5px solid #D41010;
+    background-color: #FFFFFF;
+    margin-right: 1vw;
+    border-radius: 50%;
+
+    box-shadow: 0px 4px 4px 0px #FF900040;
+    transition: box-shadow 0.3s ease;
+}
+
+#playback-button:hover {
+    box-shadow: 0px 8px 4px 0px #FF900040;
+}
+
+
+#dnaentry {
+    width: 100%;
+    height: 15vh;
+    padding: 2vh;
+    font-size: 2vh;
+    resize: none;
+
+    border: 1px solid #D41010;
+    border-radius: 3.2vh;
+
+    box-shadow: 0px 0px 7.3px 0px #FF900040;
+    transition: box-shadow 0.7s ease;
+}
+
+#dnaentry:focus {
+    box-shadow: 0px 16px 7.3px 0px #FF900040;
+}
+
+/* ERROR BOX */
+#errbox {
+    display: none;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    padding: 1vh;
+    padding-left: 2vh;
+    padding-right: 2vh;
+    margin-top: 5vh;
+
+    border: 1px solid #D41010;
+    border-radius: 3.2vh;
+    background-color: #d410106b;
+
+    box-shadow: 0px 2px 7.3px 3px #D4101040;
+}
+
+#errbox img {
+    width: 3.5vh;
+    height: 3.5vh;
+    margin-right: 2vh;
+}

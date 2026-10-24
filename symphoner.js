@@ -281,12 +281,24 @@ export class Sequence {
         }
     }
 
-    schedule_play(start) {
-        let accutime = start;
+    get total_duration() {
+        return this.base_sequence.reduce((prev, codon) => prev + codon.gap, 0);
+    }
+    
+    schedule_play(start, offset = 0) {
+        let time = start - offset;
 
         for (const codonnote of this.base_sequence) {
-            codonnote.schedule_play(accutime, undefined, undefined, undefined, undefined, undefined, this.reverbs[codonnote.color]);
-            accutime += codonnote.gap;
+            if (time >= start - 1e-6) {
+                codonnote.schedule_play(
+                    time,
+                    undefined, undefined, undefined, undefined, undefined,
+                    this.reverbs[codonnote.color]
+                );
+
+            }
+
+            time += codonnote.gap;
         }
     }
 }

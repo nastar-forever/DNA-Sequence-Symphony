@@ -1,4 +1,4 @@
-import { ctx, master_reset, Sequence, master_stop } from "./symphoner.js";
+import { ctx, Sequence, master_stop } from "./symphoner.js";
 
 let is_started = false
 const seq = new Sequence();
@@ -42,7 +42,6 @@ playback_button.onclick = () => {
     if (is_started) {
         console.log("MASTER STOP");
         master_stop();
-        master_reset();
         playback_button.classList.remove("stop_appr");
         playback_button.classList.add("playform");
         seq.base_sequence.length = 0;

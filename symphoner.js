@@ -8,7 +8,7 @@ const digit = {
 };
 
 
-const absolute_master = ctx.createGain();
+let absolute_master = ctx.createGain();
 const active_oscs = new Set();
 absolute_master.connect(ctx.destination);
 
@@ -52,8 +52,8 @@ export const standard_oscillator_map = [
 
 const standard_ir_urls = [
     "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Rooms/Commercial/Hotels/Ballrooms/Orlando%20Ballroom%20PA%20Mono.wav",
-    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Rooms/Commercial/Hotels/Ballrooms/Orlando%20Ballroom%20PA%20Mono.wav",
-    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Rooms/Commercial/Hotels/Ballrooms/Orlando%20Ballroom%20PA%20Mono.wav",
+    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Resonant%20Warbled%20Noise%20Decay%201.wav",
+    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Synthesized/Decaying/Resonant%20Warbled%20Noise%20Decay%202.wav",
     "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Rooms/Commercial/Hotels/Ballrooms/Orlando%20Ballroom%20PA%20Mono.wav"
 ]
 
@@ -195,7 +195,7 @@ export class CodonNote {
 
         active_oscs.add(osc);
         osc.onended = () => {
-            active_oscs.clear();
+            active_oscs.delete(osc);
             notegain.disconnect();
         };
     }
@@ -293,20 +293,16 @@ export class Sequence {
 
 
 export function master_stop(fadeout = 0.02) {
-    absolute_master.gain.cancelScheduledValues(ctx.currentTime);
-    absolute_master.gain.setValueAtTime(absolute_master.gain.value, ctx.currentTime);
-    absolute_master.gain.linearRampToValueAtTime(0, ctx.currentTime + fadeout);
+    const old = absolute_master;
+    old.gain.cancelScheduledValues(ctx.currentTime);
+    old.gain.setValueAtTime(old.gain.value, ctx.currentTime);
+    old.gain.linearRampToValueAtTime(0, ctx.currentTime + fadeout);
 
-    for (const osc of active_oscs) {
-        osc.stop(ctx.currentTime + fadeout); // Ensure fadeout
-    }
-
+    for (const osc of active_oscs) osc.stop(ctx.currentTime + fadeout);
     active_oscs.clear();
-}
 
-
-export function master_reset() {
-    absolute_master.gain.cancelScheduledValues(0);
-    absolute_master.gain.setValueAtTime(1, ctx.currentTime);
-    active_oscs.clear();
+    // fresh master for the next playback; old one (and its reverb tails) dies after the fade
+    absolute_master = ctx.createGain();
+    absolute_master.connect(ctx.destination);
+    setTimeout(() => old.disconnect(), fadeout * 1000 + 50);
 }

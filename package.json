@@ -1,0 +1,24 @@
+{
+  "name": "dna-sequence-symphony",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nastar-forever/DNA-Sequence-Symphony.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/nastar-forever/DNA-Sequence-Symphony/issues"
+  },
+  "homepage": "https://github.com/nastar-forever/DNA-Sequence-Symphony#readme",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

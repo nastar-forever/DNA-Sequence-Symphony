@@ -1,10 +1,11 @@
 import {Master, Channel, Sequence, load_gcl_wavetable, create_periodic_wave, load_reverb_convolver} from "./symphoner.js"
 
 const LOOKAHEAD = 1.0;
+const TICK_INTERVAL = 50;
 let origin = 0;
 let next_pass = 0;
 let dragging = false;
-let start_offeset = 0;
+let start_fraction = 0;
 let is_started = false;
 
 function $<T extends Element>(selector: string): T {
@@ -16,10 +17,10 @@ function $<T extends Element>(selector: string): T {
 }
 
 const playhead = $<HTMLInputElement>("#playhead");
-const dnaentry = $<HTMLInputElement>("#dnaentry");
-const error_box = $<HTMLInputElement>("#errbox");
-const error_msg = $<HTMLInputElement>("#errmsg");
-const playback_button = $<HTMLInputElement>("#playback-button");
+const dnaentry = $<HTMLTextAreaElement>("#dnaentry");
+const error_box = $<HTMLElement>("#errbox");
+const error_msg = $<HTMLElement>("#errmsg");
+const playback_button = $<HTMLButtonElement>("#playback-button");
 
 function show_error(msg: string) {
     error_box.style.setProperty("display", "flex");
@@ -31,17 +32,22 @@ function hide_error() {
 }
 
 
-const master = new Master();
-
-// http://github.com/GoogleChromeLabs/web-audio-samples/tree/main/src/demos/wavetable-synth/wave-tables
-const wavetable = await load_gcl_wavetable(
-    "https://raw.githubusercontent.com/GoogleChromeLabs/web-audio-samples/refs/heads/main/src/demos/wavetable-synth/wave-tables/Chorus_Strings"
+const master = new Master(
+    undefined,
+    undefined,
+    240,
+    0.2
 );
 
-const periodic_wave = create_periodic_wave(
-    master.ctx,
-    wavetable
-);
+let wtbaseurl = "https://raw.githubusercontent.com/GoogleChromeLabs/web-audio-samples/refs/heads/main/src/demos/wavetable-synth/wave-tables/"
+
+const wavetables = await Promise.all([
+    load_gcl_wavetable(wtbaseurl + "Celeste"),
+    load_gcl_wavetable(wtbaseurl + "Piano"),
+    load_gcl_wavetable(wtbaseurl + "Twelve_OpTines")
+])
+
+const periodic_waves = wavetables.map((wavetable) => wavetable ? create_periodic_wave(master.ctx, wavetable.imag, wavetable?.real) : null)
 
 // https://github.com/itsmusician/IR-Library
 const ir = await load_reverb_convolver(
@@ -49,20 +55,47 @@ const ir = await load_reverb_convolver(
     "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Rooms/Commercial/Hotels/Ballrooms/Orlando%20Ballroom%20PA%20Mono.wav"
 );
 
-if (!ir) {
-    show_error("Failed to load reverb, please check internet connection and refresh the page.");
-    throw Error("FAILED TO LOAD REVERB");
+if (!wavetables.every((wavetable) => wavetable)) {
+    show_error("Failed to load the instrument sound, falling back to a plain tone. Please check internet connection and refresh the page.");
+} else if (!ir) {
+    show_error("Failed to load reverb, playing without it. Please check internet connection and refresh the page.");
 }
 
-const channel = new Channel(master, ir, periodic_wave);
+
+const channel = new Channel(master, ir, periodic_waves);
+channel.reverb_enabled = true;
 const sequence = new Sequence(master, channel);
 
-function start_at(offset: number): void {
+
+function set_button_form(playing: boolean): void {
+    playback_button.classList.toggle("stopform", playing);
+    playback_button.classList.toggle("playform", !playing);
+}
+
+
+function start_at(fraction: number): void {
+    const offset = fraction * sequence.total_duration;
     const timestart = master.ctx.currentTime + 0.05;
     sequence.schedule_play(timestart, offset);
     origin = timestart - offset;
     next_pass = origin + sequence.total_duration;
 }
+
+
+function stop_playback(): void {
+    if (!is_started) {
+        return;
+    }
+
+    const total = sequence.total_duration;
+    start_fraction = (Math.max(0, master.ctx.currentTime - origin) % total) / total;
+
+    channel.silence();
+    sequence.clear();
+    set_button_form(false);
+    is_started = false;
+}
+
 
 function playhead_update(): void {
     const max = Number(playhead.max);
@@ -77,6 +110,7 @@ function set_playhead(fraction: number): void {
     playhead.value = (fraction * Number(playhead.max)).toString();
     playhead_update();
 }
+
 
 function tick(): void {
     if (!is_started) {
@@ -98,11 +132,11 @@ function tick(): void {
     }
 }
 
+
 function parse_dnaentry(basesequence: string): string {
     basesequence = basesequence.toUpperCase();
     basesequence = basesequence.replace(/[^ACGT]/g, "");
-    basesequence = basesequence.replace("  ", " ");
-    return basesequence
+    return (basesequence.match(/.{1,3}/g) ?? []).join(" ");
 }
 
 playhead.addEventListener("input", playhead_update);
@@ -119,59 +153,55 @@ playhead.addEventListener("change", () => {
     const max = Number(playhead.max);
 
     dragging = false;
-    start_offeset = (value / max) * sequence.total_duration;
+    start_fraction = value / max;
 
     if (is_started) {
-        master.stop();
-        start_at(start_offeset);
+        channel.silence();
+        start_at(start_fraction);
     }
 });
 
 dnaentry.addEventListener("input", () => {
-    dnaentry.value = parse_dnaentry(dnaentry.value);
+    const cleaned = parse_dnaentry(dnaentry.value);
 
-    if (is_started) {
-        master.stop();
-        playback_button.classList.remove("stopform");
-        playback_button.classList.add("playform");
-        sequence.clear();
-        is_started = false;
+    if (cleaned !== dnaentry.value) {
+        dnaentry.value = cleaned;
     }
+
+    stop_playback();
+    start_fraction = 0;
+    set_playhead(0);
 });
 
-playhead_update();
-master.ctx.resume();
 
-playback_button.onclick = () => {
+playhead_update();
+playback_button.onclick = async () => {
     if (is_started) {
-        master.stop();
-        playback_button.classList.remove("stopform");
-        playback_button.classList.add("playform");
-        sequence.clear()
-        is_started = false;
+        stop_playback();
         return;
     }
-    
-    
-    let baseseq = parse_dnaentry(dnaentry.value.replace(/[ ]/g, ""));
+
+    await master.ctx.resume();
+
+    let baseseq = parse_dnaentry(dnaentry.value).replace(/[ ]/g, "");
     console.log("Parsing Sequence: " + baseseq)
     let parse_rsult = sequence.parse_sequence(baseseq);
-    
+
     if (parse_rsult === null) {
-        const nearestallowed = Math.max(6, Math.round(baseseq.length / 6) * 6);
-        error_box.style.setProperty("display", "flex");
-        error_msg.textContent = `The amounts of bases given must be more than five and a multiple of six in order for the symphoner to work. Got ${baseseq.length} bases. Why not try ${nearestallowed} bases instead?`
+        const nearestallowed = Math.max(12, Math.round(baseseq.length / 3) * 3);
+        show_error(`The amounts of bases given must be more than twelve and a multiple of three in order for the symphoner to work. Got ${baseseq.length} bases. Why not try ${nearestallowed} bases instead?`);
         return;
-    } else {
-        error_box.style.setProperty("display", "none");
     }
-    
+
+    hide_error();
     sequence.bound();
 
     is_started = true;
-    start_at(start_offeset);
+    start_at(start_fraction);
     tick();
-    
-    playback_button.classList.remove("playform");
-    playback_button.classList.add("stopform");
+
+    set_button_form(true);
 };
+
+
+setInterval(tick, TICK_INTERVAL);

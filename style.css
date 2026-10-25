@@ -12,7 +12,7 @@ h1 {
     margin-bottom: 4vh;
 }
 
-.dnabar {
+#dnabar {
     position: fixed;
     bottom: 0px;
     left: 0px;
@@ -39,6 +39,7 @@ h1 {
 #playhead {
     width: 30vw;
     appearance: none;
+    background: transparent;
     --progress: 0%;
 }
 
@@ -55,6 +56,27 @@ h1 {
     height: 1.72vw;
     background-color: #D41010;
     margin-top: -0.36vw;
+    border-radius: 0.1vw;
+}
+
+#playhead::-moz-range-track {
+    height: 1vw;
+    border: 1px solid #D41010;
+    border-radius: 0.5vw;
+    background: transparent;
+}
+
+#playhead::-moz-range-progress {
+    height: 1vw;
+    border-radius: 0.5vw;
+    background-color: #D41010;
+}
+
+#playhead::-moz-range-thumb {
+    width: 0.52vw;
+    height: 1.72vw;
+    border: none;
+    background-color: #D41010;
     border-radius: 0.1vw;
 }
 
@@ -105,7 +127,6 @@ h1 {
     box-shadow: 0px 16px 7.3px 0px #FF900040;
 }
 
-/* ERROR BOX */
 #errbox {
     display: none;
     flex-direction: row;

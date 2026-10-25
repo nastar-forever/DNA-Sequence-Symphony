@@ -12,6 +12,11 @@ export type PatternMap = readonly [
     [number, number, number, number]
 ];
 
+export interface Wavetable {
+    readonly real: number[],
+    readonly imag: number[]
+}
+
 export const STANDARD_DELTA_MAP: BaseMap = {
     C: -2,
     A: -1,
@@ -47,8 +52,16 @@ export const STANDARD_TIME_PATTERN: PatternMap = [
     [2, 2, 2, 2]
 ]
 
+
 export const C_MAJOR: number[] = [0, 2, 4, 5, 7, 9, 11];
 
+export const START_NOTE = 60;
+export const MIN_NOTE = 48;
+export const MAX_NOTE = 84;
+export const SILENT_GAIN = 0.0001;
+
+
+///////////////////// HELPERS
 export function midi_to_freq(midi_num: number) {
     return 440 * Math.pow(2, (midi_num-69) / 12);
 }
@@ -66,18 +79,65 @@ export function slide_in_scale(origin: number, delta: number, scale = C_MAJOR): 
 
     const onscale = scale[degree] === pitch_class;
     const index = degree + (onscale || delta > 0 ? delta : delta + 1);
-    const target_octave = octave + Math.floor(index / 7);
-    const target_degree = ((index % 7) + 7) % 7;
+    const target_octave = octave + Math.floor(index / scale.length);
+    const target_degree = ((index % scale.length) + scale.length) % scale.length;
 
-    return target_octave * 12 + scale[target_degree];
+    return Math.min(MAX_NOTE, Math.max(MIN_NOTE, target_octave * 12 + scale[target_degree]));
+}
+
+export function shift_by_scale_step_in_scale(origin: number, steps: number, scale = C_MAJOR): number {
+    const degree = scale.indexOf(origin % 12);
+
+    if (degree === -1) {
+        throw new RangeError(`Origin (MIDI) note ${origin} is not inside the given scale`);
+    }
+
+    const target = degree + steps;
+    const octave = Math.floor(origin/12) + Math.floor(target / 7);
+    return octave * 12 + scale[target % 7];
+}
+
+export function diatonic_chord(origin: number, size = 3, scale = C_MAJOR): number[] {
+    return Array.from({length:size}, (_, i) => shift_by_scale_step_in_scale(origin, i*2));
 }
 
 
 // http://github.com/GoogleChromeLabs/web-audio-samples/tree/main/src/demos/wavetable-synth/wave-tables
-export async function load_gcl_wavetable(url: string): Promise<number[]> {
-    const txt = await (await fetch(url)).text();
-    const cleantxt = txt.replace(/'/g, '"').replace(/,\s*([\]}])/g, '$1');
-    return JSON.parse(cleantxt);
+export async function load_gcl_wavetable(url: string): Promise<Wavetable|null> {
+    try {
+        const res = await fetch(url);
+
+        if (!res.ok) {
+            throw new Error("FAILED TO LOAD WAVETABLE (" + res.status + ")");
+            return null;
+        }
+
+        
+        const txt = await res.text();
+        const start = txt.search(/[\[{]/);
+        const end = Math.max(txt.lastIndexOf("]"), txt.lastIndexOf("}"));
+        const cleantxt = txt.slice(start, end + 1)
+            .replace(/'/g, '"')
+            .replace(/([{,]\s*)([A-Za-z_]\w*)\s*:/g, '$1"$2":')
+            .replace(/,\s*([\]}])/g, '$1');
+
+        const data = JSON.parse(cleantxt);
+
+        if (Array.isArray(data)) {
+            return {real: new Array(data.length).fill(0), imag: data};
+        }
+
+        if (Array.isArray(data.real) && Array.isArray(data.imag) && data.real.length === data.imag.length) {
+            return {real: data.real, imag: data.imag};
+        }
+
+        throw new Error("UNKNOWN WAVETABLE SHAPE");
+        return null;
+
+    } catch (error) {
+        throw new Error("ERROR (Probable CORS block or bad format) " + error);
+        return null;
+    }
 }
 
 export function create_periodic_wave(ctx: AudioContext, imag: number[], real?: number[]) {
@@ -95,12 +155,13 @@ export function create_periodic_wave(ctx: AudioContext, imag: number[], real?: n
     )
 }
 
+
 export async function load_reverb_convolver(ctx: AudioContext, url: string): Promise<ConvolverNode|null> {
     try {
         const res = await fetch(url);
 
         if (!res.ok) {
-            console.error("FAILED TO LOAD REVERB (" + res.status + ")")
+            throw new Error("FAILED TO LOAD REVERB (" + res.status + ")")
             return null;
         }
 
@@ -115,14 +176,16 @@ export async function load_reverb_convolver(ctx: AudioContext, url: string): Pro
     }
 }
 
+
 export function damp_delta (delta: number, damper: number): number {
     return Math.round(delta * damper);
 }
+///////////////////// HELPERS END
+
 
 export class Master {
     readonly beattime: number;
     public gain: GainNode;
-    public active_oscs: Set<OscillatorNode>;
 
     constructor (
         readonly ctx = new AudioContext(),
@@ -139,23 +202,6 @@ export class Master {
         this.beattime = 60 / bpm;
         this.gain = gain ?? ctx.createGain();
         this.gain.connect(this.ctx.destination);
-
-        this.active_oscs = new Set();
-    }
-
-    stop(fadeout: number = 0.02, stoptime?: number) {
-        stoptime = stoptime ?? this.ctx.currentTime;
-        const old = this.gain;
-        old.gain.cancelScheduledValues(stoptime);
-        old.gain.setValueAtTime(old.gain.value, stoptime);
-        old.gain.linearRampToValueAtTime(0, stoptime + fadeout);
-
-        this.active_oscs.forEach((osc) => {osc.stop()});
-        this.active_oscs.clear();
-
-        this.gain = this.ctx.createGain();
-        this.gain.connect(this.ctx.destination);
-        setTimeout(() => old.disconnect(), fadeout * 1000 + 50);
     }
 }
 
@@ -163,6 +209,7 @@ export class Master {
 export class TransToken {
     constructor (
         readonly ramptype: "exp" | "lin",
+        readonly fromvalue: number,
         readonly tovalue: number,
         readonly duration: number,
         readonly param?: AudioParam
@@ -175,7 +222,7 @@ export class TransToken {
             throw Error("TransToken param is undefined.");
         }
 
-        param.setValueAtTime(param.value, execttime);
+        param.setValueAtTime(this.fromvalue, execttime);
 
         if (this.ramptype === "exp") {
             param.exponentialRampToValueAtTime(this.tovalue, execttime + this.duration);
@@ -187,17 +234,58 @@ export class TransToken {
 
 
 export class Channel {
-    public osc: OscillatorNode;
+    readonly oscs: [OscillatorNode, OscillatorNode, OscillatorNode];
     readonly gain: GainNode;
     private _wet: GainNode;
     private dry: GainNode;
-    readonly periodic_wave: PeriodicWave;
     private _reverb_enabled: boolean;
+
+    connect_oscs(to: AudioNode) {
+        this.oscs.forEach((osc) => {osc.connect(to)});
+    }
+
+    start_oscs() {
+        this.oscs.forEach((osc) => {osc.start()})
+    }
+
+    set_oscs_freqs(freqs: number[], time?: number) {
+        time = time ?? this.master.ctx.currentTime;
+        freqs.forEach((freq, index) => {
+            this.oscs[index].frequency.setValueAtTime(freq, time);
+        });
+    }
+
+    set_oscs_freq(freq: number, time?: number) {
+        time = time ?? this.master.ctx.currentTime;
+        this.oscs.forEach((osc) => {
+            osc.frequency.setValueAtTime(freq, time);
+        });
+    }
+
+    trans_oscs(
+        ramptype: "lin"|"exp",
+        freqs: number[],
+        duration: number,
+        time?: number
+    ) {
+        time = time ?? this.master.ctx.currentTime;
+
+        this.oscs.forEach((osc, index) => {
+            (new TransToken(
+                ramptype,
+                osc.frequency.value,
+                freqs[index],
+                duration,
+                osc.frequency
+            )).execute(time);
+        });
+    }
+
 
     constructor (
         readonly master: Master,
-        readonly ir: ConvolverNode,
-        periodic_wave: PeriodicWave,
+        readonly ir: ConvolverNode|null,
+        periodic_waves: PeriodicWave|[PeriodicWave, PeriodicWave, PeriodicWave]|null,
         wet: number = 0.3,
         readonly trans_duration: number = 0.1
     ) {
@@ -205,25 +293,40 @@ export class Channel {
             throw Error(`Wet value cannot exceeds one. Got ${wet} instead.`);
         }
 
-        this.osc = master.ctx.createOscillator();
-        this.osc.setPeriodicWave(periodic_wave);
+        this.oscs = [
+            master.ctx.createOscillator(),
+            master.ctx.createOscillator(),
+            master.ctx.createOscillator()
+        ]
+
+        if (periodic_waves) {
+            if (periodic_waves instanceof Array && periodic_waves.length === 3) {
+                periodic_waves.forEach((wave, index) => {this.oscs[index].setPeriodicWave(wave)});
+            } else {
+                this.oscs.forEach((osc) => {osc.setPeriodicWave(periodic_waves)})
+            }
+        }
 
         this.gain = master.ctx.createGain();
-        this.gain.gain.value = master.default_gain;
-        
+        this.gain.gain.value = SILENT_GAIN;
+
         this._wet = master.ctx.createGain();
         this._wet.gain.value = wet;
 
         this.dry = master.ctx.createGain();
         this.dry.gain.value = 1;
 
-        this.osc.connect(this.gain);
+        this.connect_oscs(this.gain);
         this.gain.connect(this.dry).connect(master.gain);
-        this.ir.connect(this._wet).connect(master.gain);
 
+        if (this.ir) {
+            this.ir.connect(this._wet).connect(master.gain);
+        }
+
+        this.start_oscs();
         this._reverb_enabled = false;
-        this.periodic_wave = periodic_wave;
     }
+
 
     get reverb_enabled() {
         return this._reverb_enabled;
@@ -242,83 +345,107 @@ export class Channel {
     }
 
     set reverb_enabled(value: boolean) {
-        if (value === this._reverb_enabled) {
+        if (!this.ir || value === this._reverb_enabled) {
             return;
         }
 
         const to_dry: number = value? 1 - this._wet.gain.value : 1;
-        (new TransToken("exp", to_dry, this.trans_duration, this.dry.gain)).execute(this.master.ctx.currentTime);
+        (new TransToken("exp", this.dry.gain.value, to_dry, this.trans_duration, this.dry.gain)).execute(this.master.ctx.currentTime);
 
         if (value) {
             this.gain.connect(this.ir);
         } else {
             this.gain.disconnect(this.ir);
         }
-        
+
         this._reverb_enabled = value;
     }
 
-    schedule_play(midinote: number, starttime: number, transtoken?: TransToken) {
-        this.osc.frequency.setValueAtTime(starttime, midi_to_freq(midinote));
+    play_note(midinote: number, starttime: number, duration: number, nextnote?: number) {
+        const dur10p = duration * 0.1; // 10% of duration
+        const dur40p = duration * 0.4; // 40% of duration
 
-        if (transtoken) {
-            transtoken.execute(starttime);
-        }
+        /// Make sure typescript is happy
+        let chord = diatonic_chord(midinote);
+        let freqchord = chord.map((note) => midi_to_freq(note));
+
+        this.set_oscs_freqs(freqchord, starttime);
+
+        (new TransToken(
+            "exp",
+            SILENT_GAIN,
+            this.master.default_gain,
+            dur10p,
+            this.gain.gain
+        )).execute(starttime);
+
+        // NOPE, NVM
+        // if (nextnote !== undefined) {
+        //     this.trans_oscs(
+        //         "lin",
+
+        //     )
+        // }
+
+        (new TransToken(
+            "exp",
+            this.master.default_gain,
+            SILENT_GAIN,
+            dur10p,
+            this.gain.gain
+        )).execute(starttime + dur40p + dur40p + dur10p);
     }
 
-    disconnect(stop=false) {
-        this.master.active_oscs.delete(this.osc);
-        this.osc.disconnect();
+    silence(fadeout: number = 0.02) {
+        const now = this.master.ctx.currentTime;
 
-        if (stop) {
-            this.osc.stop();
-        }
-    }
+        this.gain.gain.cancelScheduledValues(now);
+        this.gain.gain.setValueAtTime(Math.max(this.gain.gain.value, SILENT_GAIN), now);
+        this.gain.gain.exponentialRampToValueAtTime(SILENT_GAIN, now + fadeout);
 
-    reconnect(create_new_oscillator=true) {
-        if (create_new_oscillator) {
-            this.osc = this.master.ctx.createOscillator();
-            this.osc.setPeriodicWave(this.periodic_wave);
-        }
-
-        this.osc.connect(this.gain);
+        this.oscs.forEach((osc) => osc.frequency.cancelScheduledValues(now));
     }
 }
+
 
 export const BASES = new Set(["A", "C", "G", "T"]);
 export type Base = "A" | "C" | "G" | "T";
 export type Codon = `${Base}${Base}${Base}`;
 
+
 export function is_codon(bases: string): bases is Codon {
     return bases.length === 3 && [...bases].every((char) => BASES.has(char));
 }
 
+
 export class PlayableBases {
     constructor(
         readonly master: Master,
-        readonly initial_note: number
+        public initial_note: number
     ) {}
 
     bound_delta(prev_delta: number): void {}
+    bound_note(prev_note: number): void {}
     bound_time(pattern?: [number, number, number, number]): void {}
-    schedule_play(channel: Channel, starttime: number, trans?: TransToken, nextnote?: number): void {}
+    schedule_play(channel: Channel, starttime: number, nextnote?: number, skip = 0): void {}
     get total_duration(): number {return 0}
     get last_delta(): number {return 0}
-    get first_note(): number {return 0};
+    get first_note(): number {return 0}
+    get last_note(): number {return 0}
 }
 
+
 export class CodonNote extends PlayableBases {
-    readonly osc: OscillatorNode;
     public duration: number;
     public delta: number;
-    readonly first: "C" | "G" | "A" | "T";
-    readonly middle: "C" | "G" | "A" | "T";
-    readonly last: "C" | "G" | "A" | "T";
+    readonly first: Base;
+    readonly middle: Base;
+    readonly last: Base;
 
     constructor (
         master: Master,
         readonly codon: Codon,
-        initial_note = 60
+        initial_note = START_NOTE
     ) {
         super(master, initial_note);
         [this.first, this.middle, this.last] = [...codon] as [Base, Base, Base];
@@ -329,7 +456,6 @@ export class CodonNote extends PlayableBases {
         );
 
         this.duration = master.time_map[this.middle] * master.beattime;
-        this.osc = master.ctx.createOscillator();
     }
 
 
@@ -339,12 +465,14 @@ export class CodonNote extends PlayableBases {
 
 
     bound_delta(prev_delta: number): void {
-        const distance = Math.abs(prev_delta - this.delta);
-
-        if (distance > this.master.max_delta_change) {
-            this.delta += prev_delta < 0 ? 1 : -1;
-        }
+        const max = this.master.max_delta_change;
+        this.delta = prev_delta + Math.max(-max, Math.min(max, this.delta - prev_delta));
     }
+
+    bound_note(prev_note: number): void {
+        this.initial_note = prev_note;
+    }
+
 
     get total_duration() {
         return this.duration;
@@ -358,28 +486,36 @@ export class CodonNote extends PlayableBases {
         return this.note;
     }
 
+    get last_note() {
+        return this.note;
+    }
+
+
     schedule_play(
         channel: Channel,
         starttime: number,
-        transtoken: TransToken
+        nextnote?: number,
+        skip = 0
     ): void {
-        const note = this.note;
-        channel.schedule_play(note, starttime, transtoken);
+        channel.play_note(this.note, starttime, this.duration - skip, nextnote);
     }
 }
+
 
 export function is_codon_cluster(codons: CodonNote[]): codons is [CodonNote, CodonNote, CodonNote, CodonNote] {
     return codons.length === 4 && codons.every((codon) => codon instanceof CodonNote);
 }
 
+
 export class CodonCluster extends PlayableBases {
     constructor (
         master: Master,
         readonly codons: [CodonNote, CodonNote, CodonNote, CodonNote],
-        initial_note = 60
+        initial_note = START_NOTE
     ) {
         super(master, initial_note);
     }
+
 
     get last_delta() {
         return this.codons[3].delta;
@@ -389,10 +525,29 @@ export class CodonCluster extends PlayableBases {
         return this.codons[0].note;
     }
 
+    get last_note() {
+        return this.codons[3].note;
+    }
+    
+    get total_duration(): number {
+        return this.codons.map((codon) => codon.total_duration).reduce((acc, dur) => acc + dur, 0);
+    }
+    
+
     bound_delta(prev_delta: number): void {
         for (const [index, codon] of this.codons.entries()) {
             const prev_codon_delta = index ? this.codons[index-1].delta : prev_delta;
             codon.bound_delta(prev_codon_delta);
+        }
+    }
+
+    bound_note(prev_note: number): void {
+        this.initial_note = prev_note;
+        let note = prev_note;
+
+        for (const codon of this.codons) {
+            codon.bound_note(note);
+            note = codon.last_note;
         }
     }
 
@@ -410,48 +565,23 @@ export class CodonCluster extends PlayableBases {
         }
     }
 
-    get total_duration(): number {
-        return this.codons.map((codon) => codon.total_duration).reduce((acc, dur) => acc + dur, 0);
-    }
-
-    schedule_play(channel: Channel, starttime: number, _: TransToken, endnote?:number): void { // Ignore TransToken
+    schedule_play(channel: Channel, starttime: number, endnote?: number, skip = 0): void {
         let time = starttime;
+        let remaining = skip;
 
         for (const [index, codon] of this.codons.entries()) {
-            const nextnote = index < 3 ? this.codons[index+1].note : endnote;
-            const freq = midi_to_freq(codon.note);
-            const dur10p = codon.total_duration * 0.1; // 10% of duration
-            const dur40p = codon.total_duration * 0.4; // 40% of duration
+            const duration = codon.total_duration;
 
-            channel.gain.gain.setValueAtTime(0.0001, time);
-            channel.osc.frequency.setValueAtTime(freq, time);
-
-            channel.schedule_play(codon.note, time);
-            
-            (new TransToken(
-                "exp",
-                this.master.default_gain,
-                dur10p,
-                channel.gain.gain
-            )).execute(time);
-
-            if (nextnote) {
-                (new TransToken(
-                    "lin",
-                    midi_to_freq(nextnote),
-                    dur40p,
-                    channel.osc.frequency
-                )).execute(time + dur40p + dur10p);
+            if (remaining >= duration - 1e-6) {
+                remaining -= duration;
+                continue;
             }
-            
-            (new TransToken(
-                "exp",
-                0.0001,
-                dur10p,
-                channel.gain.gain
-            )).execute(time + dur40p + dur40p + dur10p);
 
-            time += codon.total_duration;
+            const nextnote = index < 3 ? this.codons[index+1].note : endnote;
+            codon.schedule_play(channel, time, nextnote, remaining);
+
+            time += duration - remaining;
+            remaining = 0;
         }
     }
 }
@@ -467,17 +597,22 @@ export class Sequence {
         this.codons = [];
     }
 
+    get total_duration(): number {
+        return this.codons.map((codon) => codon.total_duration).reduce((acc, dur) => acc + dur, 0);
+    }
+
+    
     clear(): void {
         this.codons.length = 0;
     }
 
     parse_sequence(sequence: string, implant=true): PlayableBases[]|null {
-        const codonscount = sequence.length / 3;
-        const clusterscount = Math.round(codonscount / 4);
-
-        if (sequence.length % 3) {
+        if (sequence.length < 12 || sequence.length % 3) {
             return null;
         }
+
+        const codonscount = sequence.length / 3;
+        const clusterscount = Math.floor(codonscount / 4);
 
         const codons: CodonNote[] = [];
         let i = 0;
@@ -489,7 +624,7 @@ export class Sequence {
                 return null;
             }
 
-            codons.push(new CodonNote(this.master, cod, i != 0 ? codons[i].note : undefined));
+            codons.push(new CodonNote(this.master, cod));
             i++;
         }
 
@@ -503,17 +638,11 @@ export class Sequence {
                 return null;
             }
 
-            clusters.push(new CodonCluster(
-                this.master,
-                cluster,
-                i != 0 ? clusters[i].codons[3].note : undefined
-            ))
+            clusters.push(new CodonCluster(this.master, cluster));
             i++;
         }
 
-        const seq: PlayableBases[] = [];
-        seq.concat(clusters);
-        seq.concat(codons.slice(clusterscount*4));
+        const seq: PlayableBases[] = [...clusters, ...codons.slice(clusterscount*4)];
 
         if (implant) {
             this.codons = seq;
@@ -521,6 +650,7 @@ export class Sequence {
 
         return seq;
     }
+
 
     bound_delta() {
         this.codons.forEach(
@@ -530,6 +660,17 @@ export class Sequence {
                     ? this.codons[index-1].last_delta
                     : 0
                 );
+            }
+        );
+    }
+
+    bound_note() {
+        let prev_note = START_NOTE;
+
+        this.codons.forEach(
+            (codon) => {
+                codon.bound_note(prev_note);
+                prev_note = codon.last_note;
             }
         );
     }
@@ -544,27 +685,33 @@ export class Sequence {
 
     bound() {
         this.bound_delta();
+        this.bound_note();
         this.bound_time();
     }
 
-    get total_duration(): number {
-        return this.codons.map((codon) => codon.total_duration).reduce((acc, dur) => acc + dur);
-    }
+
 
     schedule_play(starttime: number, offset=0): void {
-        let time = starttime - offset;
+        let time = starttime;
+        let remaining = offset;
 
         for (const [index, codon] of this.codons.entries()) {
-            if (time >= starttime - 1e-6) {
-                codon.schedule_play(
-                    this.channel,
-                    time,
-                    undefined,
-                    index < this.codons.length ? this.codons[index+1].first_note : undefined
-                );
+            const duration = codon.total_duration;
+
+            if (remaining >= duration - 1e-6) {
+                remaining -= duration;
+                continue;
             }
 
-            time += codon.total_duration;
+            codon.schedule_play(
+                this.channel,
+                time,
+                this.codons[(index + 1) % this.codons.length].first_note,
+                remaining
+            );
+
+            time += duration - remaining;
+            remaining = 0;
         }
     }
 }

@@ -4,18 +4,13 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
+    background: whitesmoke;
 }
 
 h1 {
     font-weight: lighter;
     font-size: 4vh;
-    margin-bottom: 4vh;
-}
-
-#dnabar {
-    position: fixed;
-    bottom: 0px;
-    left: 0px;
+    margin-bottom: 0vh;
 }
 
 .column-input {
@@ -29,15 +24,16 @@ h1 {
 }
 
 .row-input {
-    margin-top: 4vh;
     display: flex;
     flex-direction: row;
     justify-content: center;
     align-items: center;
+    margin-top: 4vh;
+    /* width: 100%; */
 }
 
 #playhead {
-    width: 30vw;
+    width: 57vw;
     appearance: none;
     background: transparent;
     --progress: 0%;
@@ -84,7 +80,7 @@ h1 {
     width: 5vh;
     height: 5vh;
     border: 0.5px solid #D41010;
-    background-color: #FFFFFF;
+    background-color: whitesmoke;
     margin-right: 1vw;
     border-radius: 50%;
 
@@ -111,16 +107,28 @@ h1 {
 
 #dnaentry {
     width: 100%;
-    height: 15vh;
+    height: 3vh;
     padding: 2vh;
     font-size: 2vh;
     resize: none;
+    background-color: whitesmoke;
 
     border: 1px solid #D41010;
     border-radius: 3.2vh;
+    border-bottom-left-radius: 0.2vh;
+    border-bottom-right-radius: 0.2vh;
 
     box-shadow: 0px 0px 7.3px 0px #FF900040;
     transition: box-shadow 0.7s ease;
+    font-family: "Consolas", "Times New Roman";
+
+    white-space: pre;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #D41010 #FF900040;
+
+    margin-top: 4vh;
 }
 
 #dnaentry:focus {
@@ -136,17 +144,83 @@ h1 {
     padding: 1vh;
     padding-left: 2vh;
     padding-right: 2vh;
-    margin-top: 5vh;
 
     border: 1px solid #D41010;
     border-radius: 3.2vh;
     background-color: #d410106b;
 
     box-shadow: 0px 2px 7.3px 3px #D4101040;
+    
+    margin-top: 4vh;
 }
 
 #errbox img {
     width: 3.5vh;
     height: 3.5vh;
     margin-right: 2vh;
+}
+
+
+/* DNA BAR */
+@keyframes dna_bounce{
+    0% {
+        height: 0vh;
+    }
+    75% {
+        height: calc(var(--height) * 1.1);
+    }
+    100% {
+        height:  var(--height);
+    }
+}
+
+#dnabar {
+    position: fixed;
+    bottom: 0px;
+    left: 0px;
+
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+}
+
+.base {
+    width: 30px;
+    border-radius: 7px;
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px;
+    margin-left: 5px;
+    margin-right: 5px;
+}
+
+.adenine {
+    background-color: #2B63FF;
+    --height: 2vh;
+    animation-name: dna_bounce;
+    animation-duration: 0.3s;
+    animation-fill-mode: forwards;
+}
+
+.cytosine {
+    background-color: #FF2B36;
+    --height: 2.5vh;
+    animation-name: dna_bounce;
+    animation-duration: 0.3s;
+    animation-fill-mode: forwards;
+}
+
+.guanine {
+    background-color: #179C3D;
+    --height: 3vh;
+    animation-name: dna_bounce;
+    animation-duration: 0.3s;
+    animation-fill-mode: forwards;
+}
+
+.thymine {
+    background-color: #FF912B;
+    --height: 3.5vh;
+    animation-name: dna_bounce;
+    animation-duration: 0.3s;
+    animation-fill-mode: forwards;
 }

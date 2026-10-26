@@ -1,4 +1,6 @@
 import { Master, Channel, Sequence, load_gcl_wavetable, create_periodic_wave, load_reverb_convolver } from "./symphoner.js";
+import { DNABar } from "./dnabar_el.js";
+import { ensure_acgt } from "./dna.js";
 const LOOKAHEAD = 1.0;
 const TICK_INTERVAL = 50;
 let origin = 0;
@@ -18,6 +20,8 @@ const dnaentry = $("#dnaentry");
 const error_box = $("#errbox");
 const error_msg = $("#errmsg");
 const playback_button = $("#playback-button");
+const dna_bar_el = $("#dnabar");
+const dna_bar = new DNABar(dna_bar_el, 40);
 function show_error(msg) {
     error_box.style.setProperty("display", "flex");
     error_msg.textContent = msg;
@@ -121,6 +125,19 @@ dnaentry.addEventListener("input", () => {
     stop_playback();
     start_fraction = 0;
     set_playhead(0);
+    const no_space = cleaned.replace(/[ ]/g, "");
+    if (ensure_acgt(no_space)) {
+        dna_bar.implant_bases(no_space);
+        dna_bar.update_baseblocks();
+    }
+});
+window.addEventListener("resize", () => {
+    const cleaned = parse_dnaentry(dnaentry.value).replace(/[ ]/g, "");
+    dna_bar.space_width = window.innerWidth;
+    if (ensure_acgt(cleaned)) {
+        dna_bar.implant_bases(cleaned);
+        dna_bar.update_baseblocks();
+    }
 });
 playhead_update();
 playback_button.onclick = async () => {

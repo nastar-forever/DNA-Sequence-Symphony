@@ -1,3 +1,5 @@
+import {Base, Codon, is_codon} from "./dna.js"
+
 export interface BaseMap {
     readonly C: number,
     readonly A: number,
@@ -408,14 +410,7 @@ export class Channel {
 }
 
 
-export const BASES = new Set(["A", "C", "G", "T"]);
-export type Base = "A" | "C" | "G" | "T";
-export type Codon = `${Base}${Base}${Base}`;
 
-
-export function is_codon(bases: string): bases is Codon {
-    return bases.length === 3 && [...bases].every((char) => BASES.has(char));
-}
 
 
 export class PlayableBases {

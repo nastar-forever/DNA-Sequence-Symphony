@@ -9,16 +9,18 @@
 <body>
     <div class="screencenter column-input">
         <h1>Create a symphony by writing a DNA sequence!</h1>
-        <textarea id="dnaentry" placeholder="Enter DNA sequence here..."></textarea>
+        
+        <div id="errbox">
+            <img src="assets/warning.svg">
+            <p id="errmsg">ERROR MESSAGE HERE!</p>
+        </div>
+        
+        <!-- <textarea id="dnaentry" placeholder="Enter DNA sequence here..."></textarea> -->
+        <textarea wrap="off" rows="1" id="dnaentry" placeholder="Enter DNA sequence here..."></textarea>
 
         <div class="row-input">
             <button id="playback-button" class="playform"></button> <!--playform and pauseform for determining the form of the button-->
             <input value="0" min="0" max="1000" id="playhead" type="range">
-        </div>
-
-        <div id="errbox">
-            <img src="assets/warning.svg">
-            <p id="errmsg">ERROR MESSAGE HERE!</p>
         </div>
     </div>
 

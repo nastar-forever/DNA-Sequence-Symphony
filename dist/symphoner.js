@@ -1,3 +1,4 @@
+import { is_codon } from "./dna.js";
 export const STANDARD_DELTA_MAP = {
     C: -2,
     A: -1,
@@ -270,10 +271,6 @@ export class Channel {
         this.gain.gain.exponentialRampToValueAtTime(SILENT_GAIN, now + fadeout);
         this.oscs.forEach((osc) => osc.frequency.cancelScheduledValues(now));
     }
-}
-export const BASES = new Set(["A", "C", "G", "T"]);
-export function is_codon(bases) {
-    return bases.length === 3 && [...bases].every((char) => BASES.has(char));
 }
 export class PlayableBases {
     constructor(master, initial_note) {

@@ -1,4 +1,5 @@
 import { is_codon } from "./dna.js";
+import { UserSettings } from "./settings_container.js";
 export const STANDARD_DELTA_MAP = {
     C: -2,
     A: -1,
@@ -140,6 +141,13 @@ export class Master {
         this.gain = gain ?? ctx.createGain();
         this.gain.connect(this.ctx.destination);
     }
+    get_settings() {
+        return new UserSettings(this, this.beattime * 60, this.default_gain);
+    }
+    apply_settings(set) {
+        this.beattime = 60 / set.bpm;
+        this.default_gain = set.default_gain;
+    }
 }
 export class TransToken {
     constructor(ramptype, fromvalue, tovalue, duration, param) {
@@ -161,6 +169,39 @@ export class TransToken {
         else {
             param.linearRampToValueAtTime(this.tovalue, execttime + this.duration);
         }
+    }
+}
+export class BulkTransToken {
+    to_array(params_length, thing) {
+        if (Array.isArray(thing)) {
+            if (thing.length != params_length) {
+                throw new Error(`Parameter length (${thing.length}) missmatched from params_length (${params_length})`);
+            }
+            return thing;
+        }
+        const things = Array.from({ length: params_length }, (_, __) => thing);
+        return things;
+    }
+    constructor(params_length, ramptypes, fromvalues, tovalue, durations, params) {
+        this.params_length = params_length;
+        this.params = params;
+        this.ramptypes = this.to_array(params_length, ramptypes);
+        this.fromvalues = this.to_array(params_length, fromvalues);
+        this.tovalues = this.to_array(params_length, tovalue);
+        this.durations = this.to_array(params_length, durations);
+    }
+    execute(execctime, params) {
+        params = params ?? this.params;
+        if (!params) {
+            throw Error("BulkTransToken params is undefined.");
+        }
+        if (params.length != this.params_length) {
+            throw new Error(`BulkTransToken params length (${params.length}) missmatched from params_length (${this.params_length})`);
+        }
+        execctime = this.to_array(this.params_length, execctime);
+        params.forEach((aparam, i) => {
+            (new TransToken(this.ramptypes[i], this.fromvalues[i], this.tovalues[i], this.durations[i], aparam)).execute(execctime[i]);
+        });
     }
 }
 export class Channel {
@@ -188,20 +229,24 @@ export class Channel {
             (new TransToken(ramptype, osc.frequency.value, freqs[index], duration, osc.frequency)).execute(time);
         });
     }
-    constructor(master, ir, periodic_waves, wet = 0.3, trans_duration = 0.1) {
+    constructor(master, ir, periodic_waves, wet = 0.3, chord_size = 3, trans_duration = 0.1, goofy_mode = false) {
         this.master = master;
         this.ir = ir;
+        this.periodic_waves = periodic_waves;
+        this.chord_size = chord_size;
         this.trans_duration = trans_duration;
+        this.goofy_mode = goofy_mode;
         if (wet > 1) {
             throw Error(`Wet value cannot exceeds one. Got ${wet} instead.`);
         }
-        this.oscs = [
-            master.ctx.createOscillator(),
-            master.ctx.createOscillator(),
-            master.ctx.createOscillator()
-        ];
+        this.oscs = Array.from({ length: chord_size }, (_, __) => {
+            return this.master.ctx.createOscillator();
+        });
         if (periodic_waves) {
-            if (periodic_waves instanceof Array && periodic_waves.length === 3) {
+            if (Array.isArray(periodic_waves)) {
+                if (periodic_waves.length != chord_size) {
+                    throw new Error(`periodic_waves length (${periodic_waves.length}) missmatched chord_size (${chord_size})`);
+                }
                 periodic_waves.forEach((wave, index) => { this.oscs[index].setPeriodicWave(wave); });
             }
             else {
@@ -221,6 +266,18 @@ export class Channel {
         }
         this.start_oscs();
         this._reverb_enabled = false;
+    }
+    get_settings() {
+        return new UserSettings(this, this.master.beattime * 60, this.master.default_gain, this.ir, this.chord_size, this.periodic_waves, this.wet, this.goofy_mode);
+    }
+    apply_settings(set) {
+        this.master.beattime = 60 / set.bpm;
+        this.master.default_gain = set.default_gain;
+        this.ir = set.ir;
+        this.chord_size = set.chord_size;
+        this.periodic_waves = set.periodic_waves;
+        this.wet = set.wet;
+        this.goofy_mode = set.goofy_mode;
     }
     get reverb_enabled() {
         return this._reverb_enabled;
@@ -250,19 +307,17 @@ export class Channel {
     }
     play_note(midinote, starttime, duration, nextnote) {
         const dur10p = duration * 0.1; // 10% of duration
-        const dur40p = duration * 0.4; // 40% of duration
-        /// Make sure typescript is happy
-        let chord = diatonic_chord(midinote);
+        // const dur40p = duration * 0.4; // 40% of duration
+        const dur30p = duration * 0.3;
+        const dur50p = duration * 0.5;
+        let chord = diatonic_chord(midinote, this.chord_size);
         let freqchord = chord.map((note) => midi_to_freq(note));
         this.set_oscs_freqs(freqchord, starttime);
         (new TransToken("exp", SILENT_GAIN, this.master.default_gain, dur10p, this.gain.gain)).execute(starttime);
-        // NOPE, NVM
-        // if (nextnote !== undefined) {
-        //     this.trans_oscs(
-        //         "lin",
-        //     )
-        // }
-        (new TransToken("exp", this.master.default_gain, SILENT_GAIN, dur10p, this.gain.gain)).execute(starttime + dur40p + dur40p + dur10p);
+        if (nextnote !== undefined && this.goofy_mode) {
+            (new BulkTransToken(this.oscs.length, "exp", this.oscs.map((osc) => osc.frequency.value), freqchord, dur50p, this.oscs.map((osc) => osc.frequency))).execute(starttime);
+        }
+        (new TransToken("exp", this.master.default_gain, SILENT_GAIN, dur10p, this.gain.gain)).execute(starttime + dur50p + dur30p + dur10p);
     }
     silence(fadeout = 0.02) {
         const now = this.master.ctx.currentTime;

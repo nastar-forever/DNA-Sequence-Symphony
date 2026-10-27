@@ -1,5 +1,5 @@
 import {Master, Channel, Sequence, load_gcl_wavetable, create_periodic_wave, load_reverb_convolver} from "./symphoner.js"
-import {DNABar} from "./dnabar_el.js";
+import {DNABar} from "./components.js";
 import { ensure_acgt } from "./dna.js";
 
 const LOOKAHEAD = 1.0;

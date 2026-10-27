@@ -1,23 +1,8 @@
 import {Base, Codon, is_codon} from "./dna.js"
-
-export interface BaseMap {
-    readonly C: number,
-    readonly A: number,
-    readonly G: number,
-    readonly T: number
-}
-
-export type PatternMap = readonly [
-    [number, number, number, number],
-    [number, number, number, number],
-    [number, number, number, number],
-    [number, number, number, number]
-];
-
-export interface Wavetable {
-    readonly real: number[],
-    readonly imag: number[]
-}
+import {
+    BaseMap, PatternMap, Wavetable,
+    PrimaryUserSettings, SecondaryUserSettings, UserSettings
+} from "./settings_container.js"
 
 export const STANDARD_DELTA_MAP: BaseMap = {
     C: -2,
@@ -61,7 +46,6 @@ export const START_NOTE = 60;
 export const MIN_NOTE = 48;
 export const MAX_NOTE = 84;
 export const SILENT_GAIN = 0.0001;
-
 
 ///////////////////// HELPERS
 export function midi_to_freq(midi_num: number) {
@@ -186,7 +170,7 @@ export function damp_delta (delta: number, damper: number): number {
 
 
 export class Master {
-    readonly beattime: number;
+    public beattime: number;
     public gain: GainNode;
 
     constructor (
@@ -194,23 +178,37 @@ export class Master {
         gain?: GainNode,
         bpm = 120,
         public default_gain = 1,
-        readonly max_delta_change = 2,
-        readonly delta_map = STANDARD_DELTA_MAP,
-        readonly damp_map = STANDARD_DAMP_MAP,
-        readonly time_map = STANDARD_TIME_MAP,
-        readonly pick_map = STANDARD_PICK_MAP,
-        readonly time_pattern = STANDARD_TIME_PATTERN
+        public max_delta_change = 2,
+        public delta_map = STANDARD_DELTA_MAP,
+        public damp_map = STANDARD_DAMP_MAP,
+        public time_map = STANDARD_TIME_MAP,
+        public pick_map = STANDARD_PICK_MAP,
+        public time_pattern = STANDARD_TIME_PATTERN
     ) {
         this.beattime = 60 / bpm;
         this.gain = gain ?? ctx.createGain();
         this.gain.connect(this.ctx.destination);
     }
+
+    get_settings(): UserSettings {
+        return new UserSettings(
+            this,
+            this.beattime * 60,
+            this.default_gain,
+        )
+    }
+
+    apply_settings(set: UserSettings): void {
+        this.beattime = 60 / set.bpm;
+        this.default_gain = set.default_gain;
+    }
 }
 
+type RampTypes = "exp"|"lin"
 
 export class TransToken {
     constructor (
-        readonly ramptype: "exp" | "lin",
+        readonly ramptype: RampTypes,
         readonly fromvalue: number,
         readonly tovalue: number,
         readonly duration: number,
@@ -234,9 +232,67 @@ export class TransToken {
     }
 }
 
+export class BulkTransToken {
+    private ramptypes: RampTypes[];
+    private durations: number[];
+    private fromvalues: number[];
+    private tovalues: number[]
+
+    private to_array<T>(params_length: number, thing: T|T[]): T[] {
+        if (Array.isArray(thing)) {
+            if (thing.length != params_length) {
+                throw new Error(`Parameter length (${thing.length}) missmatched from params_length (${params_length})`);
+            }
+
+            return thing;
+        }
+
+        const things: T[] = Array.from({length: params_length}, (_, __) => thing)
+        return things;
+    }
+
+    constructor (
+        private params_length: number,
+        ramptypes: RampTypes|RampTypes[],
+        fromvalues: number|number[],
+        tovalue: number|number[],
+        durations: number|number[],
+        private params?: AudioParam[]
+    ) {
+        this.ramptypes = this.to_array(params_length, ramptypes);
+        this.fromvalues = this.to_array(params_length, fromvalues);
+        this.tovalues = this.to_array(params_length, tovalue);
+        this.durations = this.to_array(params_length, durations);
+    }
+
+    execute(execctime: number|number[], params?: AudioParam[]) {
+        params = params ?? this.params;
+
+        if (!params) {
+            throw Error("BulkTransToken params is undefined.");
+        }
+
+        if (params.length != this.params_length) {
+            throw new Error(`BulkTransToken params length (${params.length}) missmatched from params_length (${this.params_length})`)
+        }
+
+        execctime = this.to_array(this.params_length, execctime);
+
+        params.forEach((aparam, i) => {
+            (new TransToken(
+                this.ramptypes[i],
+                this.fromvalues[i],
+                this.tovalues[i],
+                this.durations[i],
+                aparam
+            )).execute(execctime[i]);
+        });
+    }
+}
+
 
 export class Channel {
-    readonly oscs: [OscillatorNode, OscillatorNode, OscillatorNode];
+    readonly oscs: OscillatorNode[];
     readonly gain: GainNode;
     private _wet: GainNode;
     private dry: GainNode;
@@ -286,23 +342,30 @@ export class Channel {
 
     constructor (
         readonly master: Master,
-        readonly ir: ConvolverNode|null,
-        periodic_waves: PeriodicWave|[PeriodicWave, PeriodicWave, PeriodicWave]|null,
+        public ir: ConvolverNode|null,
+        private periodic_waves: PeriodicWave|PeriodicWave[]|null,
         wet: number = 0.3,
-        readonly trans_duration: number = 0.1
+        public chord_size: number = 3,
+        public trans_duration: number = 0.1,
+        public goofy_mode: boolean = false
     ) {
         if (wet > 1) {
             throw Error(`Wet value cannot exceeds one. Got ${wet} instead.`);
         }
 
-        this.oscs = [
-            master.ctx.createOscillator(),
-            master.ctx.createOscillator(),
-            master.ctx.createOscillator()
-        ]
+
+        this.oscs = Array.from({length: chord_size}, (_, __) => {
+            return this.master.ctx.createOscillator();
+        })
 
         if (periodic_waves) {
-            if (periodic_waves instanceof Array && periodic_waves.length === 3) {
+            if (Array.isArray(periodic_waves)) {
+                if (periodic_waves.length != chord_size) {
+                    throw new Error(
+                        `periodic_waves length (${periodic_waves.length}) missmatched chord_size (${chord_size})`
+                    )
+                }
+
                 periodic_waves.forEach((wave, index) => {this.oscs[index].setPeriodicWave(wave)});
             } else {
                 this.oscs.forEach((osc) => {osc.setPeriodicWave(periodic_waves)})
@@ -329,6 +392,28 @@ export class Channel {
         this._reverb_enabled = false;
     }
 
+    get_settings(): UserSettings {
+        return new UserSettings(
+            this,
+            this.master.beattime * 60,
+            this.master.default_gain,
+            this.ir,
+            this.chord_size,
+            this.periodic_waves,
+            this.wet,
+            this.goofy_mode
+        )
+    }
+
+    apply_settings(set: UserSettings): void {
+        this.master.beattime = 60 / set.bpm;
+        this.master.default_gain = set.default_gain;
+        this.ir = set.ir;
+        this.chord_size = set.chord_size;
+        this.periodic_waves = set.periodic_waves;
+        this.wet = set.wet;
+        this.goofy_mode = set.goofy_mode;
+    }
 
     get reverb_enabled() {
         return this._reverb_enabled;
@@ -365,10 +450,11 @@ export class Channel {
 
     play_note(midinote: number, starttime: number, duration: number, nextnote?: number) {
         const dur10p = duration * 0.1; // 10% of duration
-        const dur40p = duration * 0.4; // 40% of duration
+        // const dur40p = duration * 0.4; // 40% of duration
+        const dur30p = duration * 0.3;
+        const dur50p = duration * 0.5;
 
-        /// Make sure typescript is happy
-        let chord = diatonic_chord(midinote);
+        let chord = diatonic_chord(midinote, this.chord_size);
         let freqchord = chord.map((note) => midi_to_freq(note));
 
         this.set_oscs_freqs(freqchord, starttime);
@@ -381,13 +467,16 @@ export class Channel {
             this.gain.gain
         )).execute(starttime);
 
-        // NOPE, NVM
-        // if (nextnote !== undefined) {
-        //     this.trans_oscs(
-        //         "lin",
-
-        //     )
-        // }
+        if (nextnote !== undefined && this.goofy_mode) {
+            (new BulkTransToken(
+                this.oscs.length,
+                "exp",
+                this.oscs.map((osc) => osc.frequency.value),
+                freqchord,
+                dur50p,
+                this.oscs.map((osc) => osc.frequency)
+            )).execute(starttime);
+        }
 
         (new TransToken(
             "exp",
@@ -395,7 +484,7 @@ export class Channel {
             SILENT_GAIN,
             dur10p,
             this.gain.gain
-        )).execute(starttime + dur40p + dur40p + dur10p);
+        )).execute(starttime + dur50p + dur30p + dur10p);
     }
 
     silence(fadeout: number = 0.02) {

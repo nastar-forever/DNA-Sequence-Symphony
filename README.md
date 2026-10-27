@@ -31,8 +31,8 @@ Based on what is the `duration_pick`, the notes duration inside that group will 
 Well, just open the page and type a DNA sequence (type only in A, C, G, and T) and hit play!
 Furthermore, you can jump around the symphony by sliding the slider!
 
-## Wait, requirements?
-Yeah, two simple requirements:
+## The requirements?
+Two simple requirements:
 1. Your DNA must be at least 12 bases long.
 2. The number of bases (letters) you enter must be a multiple of three (in other words, they must be grouped into codons).
 

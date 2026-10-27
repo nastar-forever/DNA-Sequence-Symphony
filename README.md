@@ -7,11 +7,6 @@ Any DNA works fine, even when you just inputting a keyboard smash (with _require
 
 The project aims to explore the endless possibilities of random-things-to-music! (basically, I'm bored).
 
-## Wait, requirements?
-Yeah, two simple requirements:
-1. Your DNA must be at least 12 bases long.
-2. The number of bases (letters) you enter must be a multiple of three (in other words, they must be grouped into codons).
-
 # How this was built?
 This project was first typed in JavaScript, before I decided to migrate to TypeScript. The project was built by using Visual Studio Code with Live Server plugin.
 The project utilizes the AudioContext library that every browser come built-in with.
@@ -32,7 +27,16 @@ However, the jump between notes cannot be too dramatic, so a jump is controlled 
 Meanwhile, `duration` also needs to be tamed, as a random note duration will make your ears bleed. So, the sequencer will group the codons into `CodonCluster`s with 4 codons each. Then, it'll take the average `duration_pick` inside each cluster.
 Based on what is the `duration_pick`, the notes duration inside that group will be limited into 4 different patterns.
 
-# How to run it?
+# How to **use** it?
+Well, just open the page and type a DNA sequence (type only in A, C, G, and T) and hit play!
+Furthermore, you can jump around the symphony by sliding the slider!
+
+## Wait, requirements?
+Yeah, two simple requirements:
+1. Your DNA must be at least 12 bases long.
+2. The number of bases (letters) you enter must be a multiple of three (in other words, they must be grouped into codons).
+
+# How to **run** it?
 Simple! Because this is a static web project, you can directly visit the demo at https://nastar-forever.github.io/DNA-Sequence-Symphony/!
 
 ### How to run it locally?

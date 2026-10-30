@@ -141,7 +141,7 @@ export class EntrySettingsCorrespond {
     }
 
     silence() {
-        this.channels.forEach((ch) => {ch.silence});
+        this.channels.forEach((ch) => {ch.silence()});
     }
 
     get total_duration(): number {
@@ -179,15 +179,6 @@ export class Playbar {
         readonly tick_interval = 50,
     ) {}
 
-    set button_form(playing: boolean) {
-        this.playbar.classList.toggle("stopform", playing);
-        this.playbar.classList.toggle("playform", !playing);
-    }
-
-    get button_form(): boolean {
-        return this.playbar.classList.contains("playform");
-    }
-
     start_at(frac: number) {
         const seqs = this.correspond.sequences;
         const offset = frac * this.correspond.total_duration;
@@ -209,7 +200,6 @@ export class Playbar {
 
         this.correspond.silence();
         seqs.forEach((seq) => {seq.clear()});
-        this.button_form = false;
         this.active = false;
     }
 

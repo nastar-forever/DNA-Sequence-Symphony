@@ -80,7 +80,7 @@ export class EntrySettingsCorrespond {
         });
     }
     silence() {
-        this.channels.forEach((ch) => { ch.silence; });
+        this.channels.forEach((ch) => { ch.silence(); });
     }
     get total_duration() {
         return Math.max(...this.sequences.map((seq) => seq.total_duration));
@@ -110,13 +110,6 @@ export class Playbar {
         this.dragging = false;
         this.active = false;
     }
-    set button_form(playing) {
-        this.playbar.classList.toggle("stopform", playing);
-        this.playbar.classList.toggle("playform", !playing);
-    }
-    get button_form() {
-        return this.playbar.classList.contains("playform");
-    }
     start_at(frac) {
         const seqs = this.correspond.sequences;
         const offset = frac * this.correspond.total_duration;
@@ -134,7 +127,6 @@ export class Playbar {
         this.start_frac = (Math.max(0, this.master.ctx.currentTime - this.origin) % total_duration) / total_duration;
         this.correspond.silence();
         seqs.forEach((seq) => { seq.clear(); });
-        this.button_form = false;
         this.active = false;
     }
     update() {

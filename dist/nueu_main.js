@@ -8,7 +8,7 @@ const el_playbar = retrieve("#playhead");
 const playbttn = retrieve("#playback-button");
 const temp_el_dnabar = retrieve("#dnabar");
 const master = new Master();
-const standard_settings = new UserSettings(null, 240, 0.2);
+const standard_settings = new UserSettings(null, 240, 0.2, null, 3);
 const entset = new EntrySettingsCorrespond(master, standard_settings);
 const playbar = new Playbar(el_playbar, master, entset);
 const temp_dnabar = new DNABar(temp_el_dnabar, 40);
@@ -42,6 +42,10 @@ function show_error(msg) {
 function hide_error() {
     errbox.style.setProperty("display", "none");
 }
+function toggler_playbttn_form(playing) {
+    playbttn.classList.toggle("stopform", playing);
+    playbttn.classList.toggle("playform", !playing);
+}
 if (!pwaves.every((wave) => wave)) {
     show_error("Failed to load some (or all of the) instruments sound. Playing with replacement instead. Please check internet connection.");
 }
@@ -50,7 +54,7 @@ else if (!irs.every((ir) => ir)) {
 }
 // Listeners link
 playbar.update();
-el_playbar.addEventListener("input", playbar.update);
+el_playbar.addEventListener("input", () => { playbar.update(); });
 el_playbar.addEventListener("pointerdown", () => { playbar.dragging = true; });
 el_playbar.addEventListener("pointerup", () => { playbar.dragging = false; });
 el_playbar.addEventListener("change", () => {
@@ -81,10 +85,19 @@ entset.ent[0].addEventListener("input", () => {
         temp_dnabar.update_baseblocks();
     }
 });
-setInterval(playbar.tick, playbar.tick_interval);
+window.addEventListener("resize", () => {
+    const cleaned = clean_dnaentry(entset.ent[0].value).replace(/[ ]/g, "");
+    temp_dnabar.space_width = window.innerWidth;
+    if (ensure_acgt(cleaned)) {
+        temp_dnabar.implant_bases(cleaned);
+        temp_dnabar.update_baseblocks();
+    }
+});
+setInterval(() => { playbar.tick(); }, playbar.tick_interval);
 playbttn.onclick = async () => {
     if (playbar.active) {
         playbar.stop();
+        toggler_playbttn_form(false);
         return;
     }
     await master.ctx.resume();
@@ -95,10 +108,13 @@ playbttn.onclick = async () => {
         let baseseq = clean_dnaentry(entset.ent[idx].value).replace(/[ ]/g, "");
         console.log(`Parsing sequence ${idx}: ${baseseq}`);
         parse_rsult = seq.parse_sequence(baseseq) !== null && parse_rsult;
+        if (!parse_rsult) {
+            return;
+        }
         seq.bound();
-        playbar.active = true;
-        playbar.start_at(playbar.start_frac);
-        playbar.tick();
-        playbar.button_form = true;
     });
+    playbar.active = true;
+    playbar.start_at(playbar.start_frac);
+    playbar.tick();
+    toggler_playbttn_form(true);
 };

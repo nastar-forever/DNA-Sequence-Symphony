@@ -17,7 +17,9 @@ const master = new Master();
 const standard_settings = new UserSettings(
     null,
     240,
-    0.2
+    0.2,
+    null,
+    3
 )
 const entset = new EntrySettingsCorrespond(master, standard_settings);
 const playbar = new Playbar(el_playbar, master, entset);
@@ -64,6 +66,12 @@ function hide_error() {
     errbox.style.setProperty("display", "none");
 }
 
+function toggler_playbttn_form(playing: boolean) {
+    playbttn.classList.toggle("stopform", playing);
+    playbttn.classList.toggle("playform", !playing);
+}
+
+
 if (!pwaves.every((wave) => wave)) {
     show_error("Failed to load some (or all of the) instruments sound. Playing with replacement instead. Please check internet connection.");
 } else if (!irs.every((ir) => ir)) {
@@ -73,7 +81,7 @@ if (!pwaves.every((wave) => wave)) {
 
 // Listeners link
 playbar.update();
-el_playbar.addEventListener("input", playbar.update);
+el_playbar.addEventListener("input", () => {playbar.update()});
 el_playbar.addEventListener("pointerdown", () => {playbar.dragging = true});
 el_playbar.addEventListener("pointerup", () => {playbar.dragging = false});
 el_playbar.addEventListener("change", () => {
@@ -111,11 +119,23 @@ entset.ent[0].addEventListener("input", ()=>{
     }
 })
 
+window.addEventListener("resize", () => {
+    const cleaned = clean_dnaentry(entset.ent[0].value).replace(/[ ]/g, "");
 
-setInterval(playbar.tick, playbar.tick_interval);
+    temp_dnabar.space_width = window.innerWidth;
+
+    if (ensure_acgt(cleaned)) {
+        temp_dnabar.implant_bases(cleaned);
+        temp_dnabar.update_baseblocks();
+    }
+})
+
+
+setInterval(() => {playbar.tick()}, playbar.tick_interval);
 playbttn.onclick = async () => {
     if (playbar.active) {
         playbar.stop();
+        toggler_playbttn_form(false);
         return;
     }
 
@@ -130,11 +150,15 @@ playbttn.onclick = async () => {
         console.log(`Parsing sequence ${idx}: ${baseseq}`);
         parse_rsult = seq.parse_sequence(baseseq) !== null && parse_rsult;
 
-        seq.bound();
-        playbar.active = true;
-        playbar.start_at(playbar.start_frac);
-        playbar.tick();
+        if (!parse_rsult) {
+            return;
+        }
 
-        playbar.button_form = true;
+        seq.bound();
     })
+
+    playbar.active = true;
+    playbar.start_at(playbar.start_frac);
+    playbar.tick();
+    toggler_playbttn_form(true);
 }

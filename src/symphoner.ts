@@ -320,25 +320,36 @@ export class Channel {
         });
     }
 
-    trans_oscs(
-        ramptype: "lin"|"exp",
-        freqs: number[],
-        duration: number,
-        time?: number
-    ) {
-        time = time ?? this.master.ctx.currentTime;
-
-        this.oscs.forEach((osc, index) => {
-            (new TransToken(
-                ramptype,
-                osc.frequency.value,
-                freqs[index],
-                duration,
-                osc.frequency
-            )).execute(time);
-        });
+    connect_ir() {
+        if (this.ir) {
+            this.ir.connect(this._wet).connect(this.master.gain);
+        }
     }
 
+    update_periodic_waves() {
+        function stfu_typescript(val: PeriodicWave|PeriodicWave[]|null): val is PeriodicWave {
+            return val instanceof PeriodicWave;
+        }
+
+        if (this.periodic_waves) {
+            if (Array.isArray(this.periodic_waves)) {
+                if (this.periodic_waves.length != this.chord_size) {
+                    throw new Error(
+                        `periodic_waves length (${this.periodic_waves.length}) missmatched chord_size (${this.chord_size})`
+                    )
+                }
+
+                this.periodic_waves.forEach((wave, index) => {this.oscs[index].setPeriodicWave(wave)});
+
+            } else {
+                const singular_pwave = this.periodic_waves;
+
+                if (stfu_typescript(singular_pwave)) {
+                    this.oscs.forEach((osc) => {osc.setPeriodicWave(singular_pwave)})
+                }
+            }
+        }
+    }
 
     constructor (
         readonly master: Master,
@@ -358,19 +369,7 @@ export class Channel {
             return this.master.ctx.createOscillator();
         })
 
-        if (periodic_waves) {
-            if (Array.isArray(periodic_waves)) {
-                if (periodic_waves.length != chord_size) {
-                    throw new Error(
-                        `periodic_waves length (${periodic_waves.length}) missmatched chord_size (${chord_size})`
-                    )
-                }
-
-                periodic_waves.forEach((wave, index) => {this.oscs[index].setPeriodicWave(wave)});
-            } else {
-                this.oscs.forEach((osc) => {osc.setPeriodicWave(periodic_waves)})
-            }
-        }
+        this.update_periodic_waves();
 
         this.gain = master.ctx.createGain();
         this.gain.gain.value = SILENT_GAIN;
@@ -383,11 +382,7 @@ export class Channel {
 
         this.connect_oscs(this.gain);
         this.gain.connect(this.dry).connect(master.gain);
-
-        if (this.ir) {
-            this.ir.connect(this._wet).connect(master.gain);
-        }
-
+        this.connect_ir();
         this.start_oscs();
         this._reverb_enabled = false;
     }
@@ -413,6 +408,9 @@ export class Channel {
         this.periodic_waves = set.periodic_waves;
         this.wet = set.wet;
         this.goofy_mode = set.goofy_mode;
+
+        this.connect_ir();
+        this.update_periodic_waves();
     }
 
     get reverb_enabled() {

@@ -16,15 +16,16 @@
         </div>
         
         <!-- <textarea id="dnaentry" placeholder="Enter DNA sequence here..."></textarea> -->
-        <textarea wrap="off" rows="1" id="dnaentry" placeholder="Enter DNA sequence here (you can only type A, C, G, and T)..."></textarea>
-
+        <textarea wrap="off" rows="1" class="dna-entries" placeholder="Enter DNA sequence here (you can only type A, C, G, and T)..."></textarea>
+        
         <div class="row-input">
             <button id="playback-button" class="playform"></button> <!--playform and pauseform for determining the form of the button-->
             <input value="0" min="0" max="1000" id="playhead" type="range">
         </div>
     </div>
-
+    
     <div id="dnabar"></div>
-    <script type="module" src="dist/main.js"></script>
+    <script type="module" src="dist/nueu_main.js"></script>
+    <button class="entry-settings" style="display: none;"></button>
 </body>
 </html>

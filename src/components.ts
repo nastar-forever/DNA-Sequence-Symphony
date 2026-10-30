@@ -1,7 +1,9 @@
 import {Base, DNAString, to_singular_bases} from "./dna.js"
+import {BulkTransToken, Channel, Master, Sequence} from "./symphoner.js";
+import {UserSettings} from "./settings_container.js";
 
 export interface BaseBlockClasses {
-    general: string[];
+    disabled: string[];
     A: string[];
     C: string[];
     G: string[];
@@ -9,12 +11,241 @@ export interface BaseBlockClasses {
 }
 
 export const STANDARD_BASEBLOCK_CLASSES: BaseBlockClasses = {
-    general: ["base"],
-    A: ["adenine"],
-    C: ["cytosine"],
-    G: ["guanine"],
-    T: ["thymine"]
+    disabled: ["dis-base"],
+    A: ["base", "adenine"],
+    C: ["base", "cytosine"],
+    G: ["base", "guanine"],
+    T: ["base", "thymine"]
 }
+
+
+export function retrieve<T extends Element>(selector: string): T {
+    const element = document.querySelector<T>(selector);
+
+    if (!element) {
+        throw new Error(`Missing element: ${selector}`);
+    }
+
+    return element;
+}
+
+export function retrieve_all<T extends Element>(
+    selector: string,
+    buffer?: T[]
+): NodeList {
+    const elements = document.querySelectorAll<T>(selector);
+
+    if (elements.length <= 0) {
+        throw new Error(`Missing element(s): ${selector}`);
+    }
+
+    if (buffer) {
+        elements.forEach((el) => {
+            buffer.push(el);
+        })
+    }
+
+    return elements;
+}
+
+
+export interface ESCListener{
+    (ent: HTMLInputElement,
+    btn: HTMLButtonElement,
+    channel: Channel): void;
+}
+
+export interface ESCValSetFunction<T extends HTMLElement>{
+    (element: T): string;
+}
+
+export class EntrySettingsCorrespond {
+    public ent: HTMLInputElement[];
+    public bttn: HTMLButtonElement[];
+    public channels: Channel[];
+    public sequences: Sequence[];
+
+    constructor(
+        public master: Master,
+        public standard_settings: UserSettings
+    ) {
+        this.ent = [];
+        this.bttn = [];
+        this.channels = [];
+        this.sequences = [];
+    }
+
+    private validate(extra_cond = true) {
+        if (this.ent.length != this.bttn.length) {
+            throw new Error(`ent length (${this.ent.length}) mismatched from bttn length (${this.bttn.length})`);
+        }
+
+        if (!extra_cond) {
+            throw new Error("extra_cond not met");
+        }
+    }
+
+    construct_channels() {
+        this.validate();
+        this.channels.forEach((ch) => {
+            ch.terminate();
+        })
+
+        this.channels = Array.from({length:this.ent.length}, () => {
+            const ch = new Channel(
+                this.master,
+                null,
+                null
+            )
+
+            ch.apply_settings(this.standard_settings);
+            return ch;
+        })
+    }
+
+    construct_sequences() {
+        // this.validate(this.channels.length === this.ent.length);
+        this.sequences.forEach((seq) => {
+            seq.clear();
+        })
+
+        this.sequences = Array.from({length:this.ent.length}, (_, index) => {
+            return new Sequence(this.master, this.channels[index]);
+        })
+    }
+
+    button_addEventListener(
+        event: keyof HTMLElementEventMap,
+        listener: ESCListener
+    ) {
+        this.validate();
+
+        this.bttn.forEach((bttn, i) => {
+            bttn.addEventListener(event, () => {
+                listener(this.ent[i], bttn, this.channels[i]);
+            })
+        })
+    }
+
+    entry_addEventListener(
+        event: keyof HTMLElementEventMap,
+        listener: ESCListener
+    ) {
+        this.validate();
+
+        this.ent.forEach((ent, i) => {
+            ent.addEventListener(event, () => {
+                listener(ent, this.bttn[i], this.channels[i])
+            })
+        })
+    }
+
+    silence() {
+        this.channels.forEach((ch) => {ch.silence});
+    }
+
+    get total_duration(): number {
+        return Math.max(...this.sequences.map((seq) => seq.total_duration));
+    }
+
+    schedule_play(starttime: number, offset = 0) {
+        this.sequences.forEach((seq) => {seq.schedule_play(starttime, offset)});
+    }
+
+    set_entries_val_func(func: ESCValSetFunction<HTMLInputElement>) {
+        this.ent.forEach((entry) => {
+            entry.value = func(entry);
+        })
+    }
+
+    set_entries_val_str(str: string) {
+        this.ent.forEach((entry) => {entry.value = str});
+    }
+}
+
+
+export class Playbar {
+    private origin = 0;
+    private next_pass = 0;
+    public start_frac = 0;
+    public dragging = false;
+    public active = false;
+
+    constructor (
+        readonly playbar: HTMLInputElement,
+        readonly master: Master,
+        public correspond: EntrySettingsCorrespond,
+        readonly lookahead = 1.0,
+        readonly tick_interval = 50,
+    ) {}
+
+    set button_form(playing: boolean) {
+        this.playbar.classList.toggle("stopform", playing);
+        this.playbar.classList.toggle("playform", !playing);
+    }
+
+    get button_form(): boolean {
+        return this.playbar.classList.contains("playform");
+    }
+
+    start_at(frac: number) {
+        const seqs = this.correspond.sequences;
+        const offset = frac * this.correspond.total_duration;
+        const timestart = this.master.ctx.currentTime + 0.05;
+        seqs.forEach((seq) => {seq.schedule_play(timestart, offset)})
+        this.origin = timestart - offset;
+        this.next_pass = this.origin + this.correspond.total_duration;
+    }
+    
+    stop() {
+        if (!this.active) {
+            return;
+        }
+
+        const seqs = this.correspond.sequences;
+        const total_duration = this.correspond.total_duration;
+
+        this.start_frac = (Math.max(0, this.master.ctx.currentTime - this.origin) % total_duration) / total_duration;
+
+        this.correspond.silence();
+        seqs.forEach((seq) => {seq.clear()});
+        this.button_form = false;
+        this.active = false;
+    }
+
+    update() {
+        const max = Number(this.playbar.max);
+        const min = Number(this.playbar.min);
+        const value = Number(this.playbar.value);
+        const prog = (value - min) / (max - min) * 100;
+        this.playbar.style.setProperty("--progress", prog + "%");
+    }
+    
+    set(frac: number) {
+        this.playbar.value = (frac * Number(this.playbar.max)).toString();
+        this.update();
+    }
+
+    tick() {
+        if (!this.active) {
+            return;
+        }
+
+        const total = this.correspond.total_duration;
+
+        while (this.master.ctx.currentTime + this.lookahead > this.next_pass) {
+            this.correspond.schedule_play(this.next_pass);
+            this.next_pass += total;
+        }
+
+        if (!this.dragging) {
+            this.set(
+                (Math.max(0, this.master.ctx.currentTime - this.origin) % total) / total
+            );
+        }
+    }
+}
+
 
 export class DNABar {
     readonly bar: HTMLElement;
@@ -27,8 +258,7 @@ export class DNABar {
     init_baseblocks() {
         for (let i = 0; i < this.bases_limit; i++) {
             const baseblock = document.createElement("div");
-            baseblock.classList.add(...[...this.baseblock_classes.general]);
-            baseblock.style.setProperty("display", "none");
+            baseblock.classList.add(...[...this.baseblock_classes.disabled]);
 
             this.bar.appendChild(baseblock);
 
@@ -98,10 +328,7 @@ export class DNABar {
             // baseblock.style.animation = "";
             
             baseblock.classList.remove(...baseblock.classList);
-            baseblock.classList.add(...[
-                ...this.baseblock_classes.general,
-                ...this.baseblock_classes[this.bases[i]]
-            ])
+            baseblock.classList.add(...this.baseblock_classes[this.bases[i]])
             
         });
     }
@@ -136,10 +363,7 @@ export class DNABar {
 
             baseblock.style.setProperty("display", "flex");
             baseblock.classList.remove(...baseblock.classList);
-            baseblock.classList.add(...[
-                ...this.baseblock_classes.general,
-                ...this.baseblock_classes[s_bases[i] ?? []]
-            ]);
+            baseblock.classList.add(...this.baseblock_classes[s_bases[i] ?? []]);
 
             baseblock.style.setProperty("display", "flex");
         });

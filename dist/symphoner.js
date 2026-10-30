@@ -326,6 +326,28 @@ export class Channel {
         this.gain.gain.exponentialRampToValueAtTime(SILENT_GAIN, now + fadeout);
         this.oscs.forEach((osc) => osc.frequency.cancelScheduledValues(now));
     }
+    terminate() {
+        const stoptime = this.master.ctx.currentTime + 0.05;
+        this.silence(this.trans_duration);
+        this.oscs.forEach((osc) => {
+            osc.onended = () => {
+                osc.disconnect();
+            };
+            osc.stop(stoptime);
+        });
+        if (this.ir) {
+            if (this._reverb_enabled) {
+                this.gain.disconnect(this.ir);
+            }
+            this.ir.disconnect(this._wet);
+        }
+        setTimeout(() => {
+            this.gain.disconnect();
+            this.dry.disconnect();
+            this._wet.disconnect();
+        }, 100);
+        this._reverb_enabled = false;
+    }
 }
 export class PlayableBases {
     constructor(master, initial_note) {

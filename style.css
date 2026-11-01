@@ -90,8 +90,7 @@ h2 {
     border-radius: 50%;
 
     box-shadow: 0px 4px 4px 0px #FF900040;
-    transition: box-shadow 0.3s ease;
-    transition: transform 0.1s ease;
+    transition: box-shadow 0.3s ease, transform 0.1s ease;
 
     background-repeat: no-repeat;
     background-position: center;
@@ -437,8 +436,7 @@ h2 {
     justify-content: center;
     align-items: center;
     box-shadow: 0px 0px 7.3px 0px #FF900040;
-    transition: box-shadow 0.3s ease;
-    transition: transform 0.1s ease;
+    transition: box-shadow 0.3s ease, transform 0.1s ease;
     background-color: whitesmoke;
 }
 
@@ -487,7 +485,7 @@ h2 {
     box-sizing: border-box;
     height: 4vh;
     width: 49%;
-    font-family: "Consolas", "Times New Romans";
+    font-family: "Consolas", "Times New Roman";
     font-size: 2vh;
     font-weight: bold;
 
@@ -499,8 +497,7 @@ h2 {
     justify-content: center;
     align-items: center;
     box-shadow: 0px 0px 7.3px 0px #FF900040;
-    transition: box-shadow 0.3s ease;
-    transition: transform 0.1s ease;
+    transition: box-shadow 0.3s ease, transform 0.1s ease;
     background-color: whitesmoke;
 }
 

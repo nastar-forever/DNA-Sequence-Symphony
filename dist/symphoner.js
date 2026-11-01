@@ -274,7 +274,7 @@ export class Channel {
         this._reverb_enabled = false;
     }
     get_settings() {
-        return new UserSettings(this, this.master.beattime * 60, this.master.default_gain, this.ir, this.chord_size, this.periodic_waves, this.wet, this.goofy_mode);
+        return new UserSettings(this, 60 / this.master.beattime, this.master.default_gain, this.ir, this.chord_size, this.periodic_waves, this.wet, this.goofy_mode);
     }
     apply_settings(set) {
         this.master.beattime = 60 / set.bpm;
@@ -298,12 +298,15 @@ export class Channel {
             throw Error(`Wet value cannot exceeds one. Got ${value} instead.`);
         }
         this._wet.gain.setValueAtTime(value, this.master.ctx.currentTime);
+        if (this._reverb_enabled) {
+            this.dry.gain.setValueAtTime(Math.max(SILENT_GAIN, 1 - value), this.master.ctx.currentTime);
+        }
     }
     set reverb_enabled(value) {
         if (!this.ir || value === this._reverb_enabled) {
             return;
         }
-        const to_dry = value ? 1 - this._wet.gain.value : 1;
+        const to_dry = value ? Math.max(SILENT_GAIN, 1 - this._wet.gain.value) : 1;
         (new TransToken("exp", this.dry.gain.value, to_dry, this.trans_duration, this.dry.gain)).execute(this.master.ctx.currentTime);
         if (value) {
             this.gain.connect(this.ir);
@@ -323,7 +326,7 @@ export class Channel {
         this.set_oscs_freqs(freqchord, starttime);
         (new TransToken("exp", SILENT_GAIN, this.master.default_gain, dur10p, this.gain.gain)).execute(starttime);
         if (nextnote !== undefined && this.goofy_mode) {
-            (new BulkTransToken(this.oscs.length, "exp", this.oscs.map((osc) => osc.frequency.value), diatonic_chord(nextnote, this.chord_size).map((note) => midi_to_freq(note)), dur50p, this.oscs.map((osc) => osc.frequency))).execute(starttime);
+            (new BulkTransToken(this.oscs.length, "exp", freqchord, diatonic_chord(nextnote, this.chord_size).map((note) => midi_to_freq(note)), dur50p, this.oscs.map((osc) => osc.frequency))).execute(starttime);
         }
         (new TransToken("exp", this.master.default_gain, SILENT_GAIN, dur10p, this.gain.gain)).execute(starttime + dur50p + dur30p + dur10p);
     }

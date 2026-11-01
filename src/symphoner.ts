@@ -390,7 +390,7 @@ export class Channel {
     get_settings(): UserSettings {
         return new UserSettings(
             this,
-            this.master.beattime * 60,
+            60 / this.master.beattime,
             this.master.default_gain,
             this.ir,
             this.chord_size,
@@ -427,6 +427,9 @@ export class Channel {
         }
 
         this._wet.gain.setValueAtTime(value, this.master.ctx.currentTime);
+        if (this._reverb_enabled) {
+            this.dry.gain.setValueAtTime(Math.max(SILENT_GAIN, 1 - value), this.master.ctx.currentTime);
+        }
     }
 
     set reverb_enabled(value: boolean) {
@@ -434,7 +437,7 @@ export class Channel {
             return;
         }
 
-        const to_dry: number = value? 1 - this._wet.gain.value : 1;
+        const to_dry: number = value ? Math.max(SILENT_GAIN, 1 - this._wet.gain.value) : 1;
         (new TransToken("exp", this.dry.gain.value, to_dry, this.trans_duration, this.dry.gain)).execute(this.master.ctx.currentTime);
 
         if (value) {
@@ -469,7 +472,7 @@ export class Channel {
             (new BulkTransToken(
                 this.oscs.length,
                 "exp",
-                this.oscs.map((osc) => osc.frequency.value),
+                freqchord,
                 diatonic_chord(nextnote, this.chord_size).map((note) => midi_to_freq(note)),
                 dur50p,
                 this.oscs.map((osc) => osc.frequency)

@@ -45,7 +45,10 @@ const irs = await Promise.all(irexturls.map((url) => load_reverb_convolver(maste
 
 
 standard_settings.ir = irs.length > 0 ? irs[0] : null;
-standard_settings.periodic_waves = pwaves.length > 1 ? pwaves.slice(0, 3) : pwaves.length > 0 ? pwaves[0] : null;
+const loaded_waves = pwaves.filter((w): w is PeriodicWave => w !== null);
+
+standard_settings.periodic_waves = loaded_waves.length >= standard_settings.chord_size ? loaded_waves.slice(0, standard_settings.chord_size) : loaded_waves[0] ?? null;
+
 entset.construct_channels();
 entset.construct_sequences();
 
@@ -184,7 +187,7 @@ const settings_block_exit = retrieve<HTMLButtonElement>("#settings-unsaved-exit"
 const settings_block_cancel = retrieve<HTMLButtonElement>("#settings-unsaved-cancel");
 const settingsmap = ["bpm", "default_gain", "wet"] as const;
 
-let new_settings= entset.settings[0];
+let new_settings = standard_settings;
 let selected_channel = 0;
 
 interface SettingsData {
@@ -197,7 +200,7 @@ function parse_settings(form: HTMLFormElement): SettingsData {
     const data = new FormData(form);
     return {
         bpm: Number(data.get("bpm")),
-        default_gain: Number(data.get("gain")),
+        default_gain: Number(data.get("default_gain")),
         wet: Number(data.get("wet"))
     }
 }
@@ -221,7 +224,7 @@ entset.button_addEventListener("click", (ent, btn, channel, setting, idx) => {
 })
 
 
-settings_form.addEventListener("submit", async (event: SubmitEvent) => {
+settings_form.addEventListener("submit", (event: SubmitEvent) => {
     event.preventDefault();
 
     if (!settings_form.checkValidity()) {
@@ -234,6 +237,13 @@ settings_form.addEventListener("submit", async (event: SubmitEvent) => {
     new_settings.bpm = data.bpm;
     new_settings.default_gain = data.default_gain;
     new_settings.wet = data.wet;
+
+    if (playbar.active) {
+        playbar.stop();
+        playbar.start_frac = 0;
+        playbar.set(0);
+        set_playbttn_form(false);
+    }
 
     entset.channels[selected_channel].apply_settings(new_settings);
 })
@@ -263,5 +273,6 @@ settings_block_cancel.onclick = () => {
 }
 
 settings_block_exit.onclick = () => {
+    settings_block.style.setProperty("display", "none");
     exit_form();
 }

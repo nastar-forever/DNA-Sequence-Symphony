@@ -134,7 +134,7 @@ h2 {
     box-sizing: border-box;
     height: 7vh;
     padding: 2vh;
-    aspect-ratio: 1.1/1;
+    width: 5vh;
 
     border: 1px solid #D41010;
     border-radius: 0.2vh;
@@ -144,10 +144,10 @@ h2 {
     background-color: whitesmoke;
     transition: box-shadow 0.3s ease;
 
-    background-image: url("assets/play.svg"); /* TEMPORARY */
+    background-image: url("assets/more.svg"); /* TEMPORARY */
     background-repeat: no-repeat;
-    background-position: center;
-    background-size: 55%;
+    background-position: 40% 50%;
+    background-size: 70%;
 }
 
 .entry-settings:hover {
@@ -156,7 +156,7 @@ h2 {
 
 .dna-entry-wrapper {
     box-sizing: border-box;
-    width: calc(56vw - 1vh);
+    width: calc(56vw + 1.8vh);
     height: 7vh;
     padding: 2vh;
     font-size: 2vh;
@@ -193,15 +193,19 @@ h2 {
     scrollbar-color: #D41010 #FF900040;
 }
 
+.dna-entry-wrapper:focus-within {
+    box-shadow: 0px 4px 7.3px 0px #FF900040;
+}
+
 .dna-entry:focus {
-    box-shadow: 0px 16px 7.3px 0px #FF900040;
+    box-shadow: none;
 }
 
 .errbox {
     display: none;
     flex-direction: row;
     align-items: center;
-    width: 100%;
+    width: calc(56vw + 2.67vh); /* Ignore this magic number */
     padding: 1vh;
     padding-left: 2vh;
     padding-right: 2vh;
@@ -240,6 +244,7 @@ h2 {
     position: fixed;
     bottom: 0px;
     left: 0px;
+    z-index: 0;
 
     display: flex;
     flex-direction: row;
@@ -300,8 +305,31 @@ h2 {
     width: 100vw;
     height: 100vh;
 
+    z-index: 2;
+    background-color: rgba(0, 0, 0, 0);
+    backdrop-filter: blur(0);
+    -webkit-backdrop-filter: blur(0); /* Safari wants to be special */
+    opacity: 0;
+
+    transition: display 0.2s allow-discrete, opacity 0.2s ease, background 0.2s ease, backdrop-filter 0.2s ease, -webkit-backdrop-filter 0.2s ease;
+    /* transition: backdrop-filter 0.4s ease, -webkit-backdrop-filter 0.4s ease, background 0.4s ease; */
+}
+
+.screen-blur.active {
+    display: block;
     background-color: rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(1vh);
+    -webkit-backdrop-filter: blur(1vh); /* Safari wants to be special */
+    opacity: 1;
+}
+
+@starting-style {
+    .screen-blur.active {
+        background: rgba(0, 0, 0, 0);
+        backdrop-filter: blur(0);
+        -webkit-backdrop-filter: blur(0);
+        opacity: 0;
+    }
 }
 
 #settings-screen {
@@ -329,7 +357,9 @@ h2 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 3vh;
+    padding: 2vh;
+    padding-left: 3vh;
+    padding-right: 3vh;
 
     width: 100%;
     height: 9%;
@@ -340,15 +370,18 @@ h2 {
 
 .settings-screen-title h1 {
     margin: 0;
+    font-size: 4vh;
+    font-weight: bolder;
 }
 
 #settings-exit {
+    background-color: whitesmoke;
     border: none;
-    background-color: transparent;
 }
 
-#settings-exit h2 {
-    margin: 0;
+#settings-exit img {
+    width: 4vh;
+    height: 4vh;
 }
 
 .settings-column {
@@ -380,8 +413,8 @@ h2 {
     margin: 0;
     margin-right: 3vh;
     
-    font-size: 3vh;
-    font-weight: bold;
+    font-size: 2.5vh;
+    /* font-weight: bold; */
     width: 100%;
     display: flex;
     justify-content: space-between;

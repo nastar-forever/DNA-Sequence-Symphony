@@ -103,20 +103,24 @@ export class EntrySettingsCorrespond {
 
     construct_channels() {
         this.validate();
-        this.channels.forEach((ch) => {
-            ch.terminate();
-        })
+        this.channels.forEach((ch) => ch.terminate());
 
-        this.channels = Array.from({length:this.ent.length}, () => {
-            const ch = new Channel(
-                this.master,
+        this.channels = Array.from({length: this.ent.length}, (_, i) => {
+            this.settings[i] ??= new UserSettings(
                 null,
-                null
-            )
+                this.standard_settings.bpm,
+                this.standard_settings.default_gain,
+                this.standard_settings.ir,
+                this.standard_settings.chord_size,
+                this.standard_settings.periodic_waves,
+                this.standard_settings.wet,
+                this.standard_settings.goofy_mode
+            );
 
-            ch.apply_settings(this.standard_settings);
+            const ch = new Channel(this.master, null, null);
+            ch.apply_settings(this.settings[i]);
             return ch;
-        })
+        });
     }
 
     construct_sequences() {

@@ -206,8 +206,12 @@ function parse_settings(form: HTMLFormElement): SettingsData {
 }
 
 
-function exit_form() {
-    mainscreen_block.style.setProperty("display", "none");
+function exit_form(block: HTMLElement) {
+    block.classList.toggle("active", false);
+}
+
+function enter_form(block: HTMLElement) {
+    block.classList.toggle("active", true);
 }
 
 function fill_form() {
@@ -219,7 +223,7 @@ function fill_form() {
 entset.button_addEventListener("click", (ent, btn, channel, setting, idx) => {
     new_settings = entset.settings[idx];
     selected_channel = idx;
-    mainscreen_block.style.setProperty("display", "block");
+    enter_form(mainscreen_block);
     fill_form();
 })
 
@@ -246,6 +250,7 @@ settings_form.addEventListener("submit", (event: SubmitEvent) => {
     }
 
     entset.channels[selected_channel].apply_settings(new_settings);
+    exit_form(mainscreen_block);
 })
 
 
@@ -261,18 +266,18 @@ settings_exit_bttn.onclick = () => {
     }
 
     if (passed) {
-        exit_form();
+        exit_form(mainscreen_block);
     } else {
-        settings_block.style.setProperty("display", "block");
+        enter_form(settings_block);
     }
 }
 
 
 settings_block_cancel.onclick = () => {
-    settings_block.style.setProperty("display", "none");
+    exit_form(settings_block);
 }
 
 settings_block_exit.onclick = () => {
-    settings_block.style.setProperty("display", "none");
-    exit_form();
+    exit_form(settings_block);
+    exit_form(mainscreen_block);
 }

@@ -1,5 +1,6 @@
 import { to_singular_bases } from "./dna.js";
 import { Channel, Sequence } from "./symphoner.js";
+import { UserSettings } from "./settings_container.js";
 export const STANDARD_BASEBLOCK_CLASSES = {
     disabled: ["dis-base"],
     A: ["base", "adenine"],
@@ -56,12 +57,12 @@ export class EntrySettingsCorrespond {
     }
     construct_channels() {
         this.validate();
-        this.channels.forEach((ch) => {
-            ch.terminate();
-        });
-        this.channels = Array.from({ length: this.ent.length }, () => {
+        this.channels.forEach((ch) => ch.terminate());
+        this.channels = Array.from({ length: this.ent.length }, (_, i) => {
+            var _a;
+            (_a = this.settings)[i] ?? (_a[i] = new UserSettings(null, this.standard_settings.bpm, this.standard_settings.default_gain, this.standard_settings.ir, this.standard_settings.chord_size, this.standard_settings.periodic_waves, this.standard_settings.wet, this.standard_settings.goofy_mode));
             const ch = new Channel(this.master, null, null);
-            ch.apply_settings(this.standard_settings);
+            ch.apply_settings(this.settings[i]);
             return ch;
         });
     }

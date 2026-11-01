@@ -7,7 +7,7 @@ import {
 } from "./symphoner.js"
 
 
-const errbox = retrieve<HTMLElement>("#errbox");
+const mainscreen_errbox = retrieve<HTMLElement>("#mainscreen-errbox");
 const errmsg = retrieve<HTMLElement>("#errmsg");
 const el_playbar = retrieve<HTMLInputElement>("#playhead");
 const playbttn = retrieve<HTMLButtonElement>("#playback-button");
@@ -58,12 +58,12 @@ function clean_dnaentry(dnaentry: string): string {
 }
 
 function show_error(msg: string) {
-    errbox.style.setProperty("display", "flex");
+    mainscreen_errbox.style.setProperty("display", "flex");
     errmsg.textContent = msg;
 }
 
 function hide_error() {
-    errbox.style.setProperty("display", "none");
+    mainscreen_errbox.style.setProperty("display", "none");
 }
 
 function set_playbttn_form(playing: boolean) {

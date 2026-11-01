@@ -17,7 +17,7 @@ function $(selector) {
 }
 const playhead = $("#playhead");
 const dnaentry = $("#dnaentry");
-const error_box = $("#errbox");
+const error_box = $("#mainscreen-errbox");
 const error_msg = $("#errmsg");
 const playback_button = $("#playback-button");
 const dna_bar_el = $("#dnabar");

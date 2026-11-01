@@ -13,6 +13,11 @@ h1 {
     margin-bottom: 0vh;
 }
 
+h2 {
+    font-weight: lighter;
+    font-size: 3vh;
+}
+
 .column-input {
     display: flex;
     flex-direction: column;
@@ -131,7 +136,6 @@ h1 {
     border-top-right-radius: 3.2vh;
     
     box-shadow: 0px 0px 7.3px 0px #FF900040;
-    box-shadow: 0px 0px 7.3px 0px #FF900040;
     background-color: whitesmoke;
     transition: box-shadow 0.3s ease;
 
@@ -180,20 +184,18 @@ h1 {
     white-space: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
-    scrollbar-width: hidden;
     scrollbar-width: thin;
     scrollbar-color: #D41010 #FF900040;
 }
 
-#dnaentry:focus {
+#dna-entry:focus {
     box-shadow: 0px 16px 7.3px 0px #FF900040;
 }
 
-#errbox {
+.errbox {
     display: none;
     flex-direction: row;
     align-items: center;
-    justify-content: flex-start;
     width: 100%;
     padding: 1vh;
     padding-left: 2vh;
@@ -209,7 +211,7 @@ h1 {
     font-size: 2vh;
 }
 
-#errbox img {
+.errbox img {
     width: 3.5vh;
     height: 3.5vh;
     margin-right: 2vh;
@@ -282,4 +284,129 @@ h1 {
     animation-name: dna_bounce;
     animation-duration: 0.3s;
     animation-fill-mode: forwards;
+}
+
+/* SETTINGS */
+#mainscreen-blur {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+
+    background-color: rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+#settings-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    
+    width: 80vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    background-color: whitesmoke;
+
+    border: 1px solid #D41010;
+    border-radius: 3vh;
+    box-shadow: 0px 0px 50px 0px #fffffe40;
+}
+
+#settings-screen-title {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3vh;
+
+    width: 100%;
+    height: 9%;
+
+    border-bottom: 1px solid #D41010;
+    margin-bottom: 1px;
+}
+
+#settings-screen-title h1 {
+    margin: 0;
+}
+
+#settings-exit {
+    border: none;
+    background-color: transparent;
+}
+
+#settings-exit h2 {
+    margin: 0;
+}
+
+.settings-column {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    
+    padding: 4vh;
+    padding-top: 1vh;
+    padding-bottom: 2vh;
+    max-height: 100%;
+    width: 100%;
+
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #D41010 #FF900040;
+}
+
+.settings-row {
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row;
+    margin-top: 2vh;
+}
+
+.settings-row-title {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    margin-right: 3vh;
+    
+    font-size: 3vh;
+    font-weight: bold;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+}
+
+.settings-row-title p {
+    margin: 0;
+    padding: 0;
+}
+
+.settings-input-field {
+    height: 100%;
+    border: 1px solid #D41010;
+    border-radius: 1vh;
+    font-size: 2vh;
+    width: 5vw;
+    background-color: whitesmoke;
+    box-shadow: 0px 0px 7.3px 0px #FF900040;
+    transition: box-shadow 0.7s ease;
+
+    font-family: 'Consolas', 'Times New Roman';
+    font-weight: bold;
+    padding: 1vh;
+}
+
+.settings-input-field:focus {
+    box-shadow: 0px 3px 7.3px 0px #FF900040;
+}
+
+#settings-errbox {
+    display: none;
+    width: 94%;
 }

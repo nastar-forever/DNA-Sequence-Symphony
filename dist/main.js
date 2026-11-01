@@ -2,7 +2,7 @@ import { DNABar, EntrySettingsCorrespond, Playbar, retrieve, retrieve_all } from
 import { ensure_acgt } from "./dna.js";
 import { UserSettings } from "./settings_container.js";
 import { Master, load_gcl_wavetable, create_periodic_wave, load_reverb_convolver } from "./symphoner.js";
-const errbox = retrieve("#errbox");
+const mainscreen_errbox = retrieve("#mainscreen-errbox");
 const errmsg = retrieve("#errmsg");
 const el_playbar = retrieve("#playhead");
 const playbttn = retrieve("#playback-button");
@@ -36,11 +36,11 @@ function clean_dnaentry(dnaentry) {
     return dnaentry;
 }
 function show_error(msg) {
-    errbox.style.setProperty("display", "flex");
+    mainscreen_errbox.style.setProperty("display", "flex");
     errmsg.textContent = msg;
 }
 function hide_error() {
-    errbox.style.setProperty("display", "none");
+    mainscreen_errbox.style.setProperty("display", "none");
 }
 function set_playbttn_form(playing) {
     playbttn.classList.toggle("stopform", playing);

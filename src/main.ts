@@ -1,233 +1,283 @@
-import {Master, Channel, Sequence, load_gcl_wavetable, create_periodic_wave, load_reverb_convolver} from "./symphoner.js"
-import {DNABar} from "./components.js";
-import { ensure_acgt } from "./dna.js";
+import {DNABar, EntrySettingsCorrespond, Playbar, retrieve, retrieve_all} from "./components.js"
+import {ensure_acgt} from "./dna.js"
+import { UserSettings } from "./settings_container.js";
+import {
+    Master, Channel, Sequence,
+    load_gcl_wavetable, create_periodic_wave, load_reverb_convolver
+} from "./symphoner.js"
 
-const LOOKAHEAD = 1.0;
-const TICK_INTERVAL = 50;
-let origin = 0;
-let next_pass = 0;
-let dragging = false;
-let start_fraction = 0;
-let is_started = false;
 
-function $<T extends Element>(selector: string): T {
-    const element = document.querySelector<T>(selector);
-    if (!element) {
-        throw new Error(`Missing element: ${selector}`);
-    }
-    return element;
+const mainscreen_errbox = retrieve<HTMLElement>("#mainscreen-errbox");
+const mainscreen_errmsg = retrieve<HTMLElement>("#errmsg");
+const el_playbar = retrieve<HTMLInputElement>("#playhead");
+const playbttn = retrieve<HTMLButtonElement>("#playback-button");
+const temp_el_dnabar = retrieve<HTMLElement>("#dnabar");
+
+
+const master = new Master();
+const standard_settings = new UserSettings(
+    null,
+    240,
+    0.2,
+    null,
+    3
+)
+const entset = new EntrySettingsCorrespond(master, standard_settings);
+const playbar = new Playbar(el_playbar, master, entset);
+const temp_dnabar = new DNABar(temp_el_dnabar, 40);
+
+
+// Planning to have an "orchestra" feature (lol)
+retrieve_all<HTMLInputElement>(".dna-entry", entset.ent);
+retrieve_all<HTMLButtonElement>(".entry-settings", entset.bttn);
+
+
+const wtbaseurl = "https://raw.githubusercontent.com/GoogleChromeLabs/web-audio-samples/refs/heads/main/src/demos/wavetable-synth/wave-tables/"
+const wtexturls = ["Celeste", "Piano", "Twelve_OpTines"];
+const irbaseurl = "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/"
+const irexturls = [
+    "Rooms/Commercial/Hotels/Ballrooms/Orlando%20Ballroom%20PA%20Mono.wav"
+];
+
+const wtables = await Promise.all(wtexturls.map((eurl) => load_gcl_wavetable(wtbaseurl + eurl)));
+const pwaves = wtables.map((table) => table ? create_periodic_wave(master.ctx, table.imag, table.real) : null)
+const irs = await Promise.all(irexturls.map((url) => load_reverb_convolver(master.ctx, irbaseurl + url)))
+
+
+standard_settings.ir = irs.length > 0 ? irs[0] : null;
+const loaded_waves = pwaves.filter((w): w is PeriodicWave => w !== null);
+
+standard_settings.periodic_waves = loaded_waves.length >= standard_settings.chord_size ? loaded_waves.slice(0, standard_settings.chord_size) : loaded_waves[0] ?? null;
+
+entset.construct_channels();
+entset.construct_sequences();
+
+
+// DOM manipulators
+function clean_dnaentry(dnaentry: string): string {
+    dnaentry = dnaentry.toUpperCase();
+    dnaentry = dnaentry.replace(/[^ACGT]/g, "");
+    dnaentry = (dnaentry.match(/.{1,3}/g) ?? []).join(" ");
+    return dnaentry;
 }
 
-const playhead = $<HTMLInputElement>("#playhead");
-const dnaentry = $<HTMLTextAreaElement>("#dnaentry");
-const error_box = $<HTMLElement>("#errbox");
-const error_msg = $<HTMLElement>("#errmsg");
-const playback_button = $<HTMLButtonElement>("#playback-button");
-const dna_bar_el = $<HTMLElement>("#dnabar");
-
-const dna_bar = new DNABar(
-    dna_bar_el,
-    40
-);
-
 function show_error(msg: string) {
-    error_box.style.setProperty("display", "flex");
-    error_msg.textContent = msg;
+    mainscreen_errbox.style.setProperty("display", "flex");
+    mainscreen_errmsg.textContent = msg;
 }
 
 function hide_error() {
-    error_box.style.setProperty("display", "none");
+    mainscreen_errbox.style.setProperty("display", "none");
+}
+
+function set_playbttn_form(playing: boolean) {
+    playbttn.classList.toggle("stopform", playing);
+    playbttn.classList.toggle("playform", !playing);
 }
 
 
-const master = new Master(
-    undefined,
-    undefined,
-    240,
-    0.2
-);
-
-let wtbaseurl = "https://raw.githubusercontent.com/GoogleChromeLabs/web-audio-samples/refs/heads/main/src/demos/wavetable-synth/wave-tables/"
-
-const wavetables = await Promise.all([
-    load_gcl_wavetable(wtbaseurl + "Celeste"),
-    load_gcl_wavetable(wtbaseurl + "Piano"),
-    load_gcl_wavetable(wtbaseurl + "Twelve_OpTines")
-])
-
-const periodic_waves = wavetables.map((wavetable) => wavetable ? create_periodic_wave(master.ctx, wavetable.imag, wavetable?.real) : null)
-
-// https://github.com/itsmusician/IR-Library
-const ir = await load_reverb_convolver(
-    master.ctx,
-    "https://raw.githubusercontent.com/itsmusician/IR-Library/refs/heads/main/Rooms/Commercial/Hotels/Ballrooms/Orlando%20Ballroom%20PA%20Mono.wav"
-);
-
-if (!wavetables.every((wavetable) => wavetable)) {
-    show_error("Failed to load the instrument sound, falling back to a plain tone. Please check internet connection and refresh the page.");
-} else if (!ir) {
-    show_error("Failed to load reverb, playing without it. Please check internet connection and refresh the page.");
+if (!pwaves.every((wave) => wave)) {
+    show_error("Failed to load some (or all of the) instruments sound. Playing with replacement instead. Please check internet connection.");
+} else if (!irs.every((ir) => ir)) {
+    show_error("Some reverbs (or all of it) failed to load. Playing with replacement/without one.")
 }
 
 
-const channel = new Channel(master, ir, periodic_waves);
-channel.reverb_enabled = true;
-const sequence = new Sequence(master, channel);
+// Listeners link
+playbar.update();
+el_playbar.addEventListener("input", () => {playbar.update()});
+el_playbar.addEventListener("pointerdown", () => {playbar.dragging = true});
+el_playbar.addEventListener("pointerup", () => {playbar.dragging = false});
+el_playbar.addEventListener("change", () => {
+    const value = Number(el_playbar.value);
+    const max = Number(el_playbar.max);
 
+    playbar.dragging = false;
+    playbar.start_frac = value / max;
 
-function set_button_form(playing: boolean): void {
-    playback_button.classList.toggle("stopform", playing);
-    playback_button.classList.toggle("playform", !playing);
-}
-
-
-function start_at(fraction: number): void {
-    const offset = fraction * sequence.total_duration;
-    const timestart = master.ctx.currentTime + 0.05;
-    sequence.schedule_play(timestart, offset);
-    origin = timestart - offset;
-    next_pass = origin + sequence.total_duration;
-}
-
-
-function stop_playback(): void {
-    if (!is_started) {
-        return;
-    }
-
-    const total = sequence.total_duration;
-    start_fraction = (Math.max(0, master.ctx.currentTime - origin) % total) / total;
-
-    channel.silence();
-    sequence.clear();
-    set_button_form(false);
-    is_started = false;
-}
-
-
-function playhead_update(): void {
-    const max = Number(playhead.max);
-    const min = Number(playhead.min);
-    const value = Number(playhead.value);
-    const prog = (value - min) / (max - min) * 100;
-    playhead.style.setProperty("--progress", prog + "%");
-}
-
-
-function set_playhead(fraction: number): void {
-    playhead.value = (fraction * Number(playhead.max)).toString();
-    playhead_update();
-}
-
-
-function tick(): void {
-    if (!is_started) {
-        return;
-    }
-
-    const total = sequence.total_duration;
-
-    while (master.ctx.currentTime + LOOKAHEAD > next_pass) {
-        sequence.schedule_play(next_pass);
-        next_pass += total;
-    }
-
-    if (!dragging) {
-        set_playhead(
-            (Math.max(0, master.ctx.currentTime - origin) 
-            % total) / total
-        );
-    }
-}
-
-
-function parse_dnaentry(basesequence: string): string {
-    basesequence = basesequence.toUpperCase();
-    basesequence = basesequence.replace(/[^ACGT]/g, "");
-    return (basesequence.match(/.{1,3}/g) ?? []).join(" ");
-}
-
-playhead.addEventListener("input", playhead_update);
-playhead.addEventListener("pointerdown", () => {
-    dragging = true;
-});
-
-playhead.addEventListener("pointerup", () => {
-    dragging = false;
-});
-
-playhead.addEventListener("change", () => {
-    const value = Number(playhead.value);
-    const max = Number(playhead.max);
-
-    dragging = false;
-    start_fraction = value / max;
-
-    if (is_started) {
-        channel.silence();
-        start_at(start_fraction);
+    if (playbar.active) {
+        entset.silence();
+        playbar.start_at(playbar.start_frac);
     }
 });
 
-dnaentry.addEventListener("input", () => {
-    const cleaned = parse_dnaentry(dnaentry.value);
+entset.entry_addEventListener("input", (ent) => {
+    const cleaned = clean_dnaentry(ent.value);
 
-    if (cleaned !== dnaentry.value) {
-        dnaentry.value = cleaned;
+    if (cleaned !== ent.value) {
+        ent.value = cleaned;
     }
 
-    stop_playback();
-    start_fraction = 0;
-    set_playhead(0);
-
-    const no_space = cleaned.replace(/[ ]/g, "");
-
-    if (ensure_acgt(no_space)) {
-        dna_bar.implant_bases(no_space);
-        dna_bar.update_baseblocks();
+    if (playbar.active) {
+        playbar.stop();
+        playbar.start_frac = 0;
+        playbar.set(0);
+        set_playbttn_form(false);
     }
-});
+})
 
+entset.ent[0].addEventListener("input", ()=>{
+    const cleaned = clean_dnaentry(entset.ent[0].value).replace(/[ ]/g, "");
+    if (ensure_acgt(cleaned)) {
+        temp_dnabar.implant_bases(cleaned);
+        temp_dnabar.update_baseblocks();
+    }
+})
 
 window.addEventListener("resize", () => {
-    const cleaned = parse_dnaentry(dnaentry.value).replace(/[ ]/g, "");
+    const cleaned = clean_dnaentry(entset.ent[0].value).replace(/[ ]/g, "");
 
-    dna_bar.space_width = window.innerWidth;
+    temp_dnabar.space_width = window.innerWidth;
+
     if (ensure_acgt(cleaned)) {
-        dna_bar.implant_bases(cleaned);
-        dna_bar.update_baseblocks();
+        temp_dnabar.implant_bases(cleaned);
+        temp_dnabar.update_baseblocks();
     }
 })
 
 
-playhead_update();
-playback_button.onclick = async () => {
-    if (is_started) {
-        stop_playback();
+setInterval(() => {playbar.tick()}, playbar.tick_interval);
+playbttn.onclick = async () => {
+    if (playbar.active) {
+        playbar.stop();
+        set_playbttn_form(false);
         return;
     }
-
+    
     await master.ctx.resume();
 
-    let baseseq = parse_dnaentry(dnaentry.value).replace(/[ ]/g, "");
-    console.log("Parsing Sequence: " + baseseq)
-    let parse_rsult = sequence.parse_sequence(baseseq);
+    entset.construct_channels();
+    entset.construct_sequences();
 
-    if (parse_rsult === null) {
-        const nearestallowed = Math.max(12, Math.round(baseseq.length / 3) * 3);
-        show_error(`The amounts of bases given must be more than twelve and a multiple of three in order for the symphoner to work. Got ${baseseq.length} bases. Why not try ${nearestallowed} bases instead?`);
-        return;
+    entset.channels.forEach((ch) => {ch.reverb_enabled = true});
+    const zipped = entset.ent.map((ent, idx): [number, HTMLInputElement, Sequence] => [idx, ent, entset.sequences[idx]]);
+
+    for (const [idx, ent, seq] of zipped) {
+        const cleanseq = clean_dnaentry(ent.value).replace(/[ ]/g, "");
+        const parse_rsult = seq.parse_sequence(cleanseq);
+        const seqlen = cleanseq.length;
+
+        if (parse_rsult === null) {
+            const nearestallowed = Math.max(12, Math.round(seqlen / 3) * 3);
+            show_error(`The amounts of characters given on a DNA sequence must be more than 12 and a multiple of three in order for the musicalizer to work. Meanwhile, sequence #${idx+1} got ${seqlen} characters. Why not try ${nearestallowed} characters instead?`);
+            return;
+        }
+
+        seq.bound();
     }
 
     hide_error();
-    sequence.bound();
 
-    is_started = true;
-    start_at(start_fraction);
-    tick();
-
-    set_button_form(true);
-};
+    playbar.active = true;
+    playbar.start_at(playbar.start_frac);
+    playbar.tick();
+    set_playbttn_form(true);
+}
 
 
-setInterval(tick, TICK_INTERVAL);
+
+
+// SETTINGS SCREEN
+const settings_form = retrieve<HTMLFormElement>("#settings-form");
+const mainscreen_block = retrieve<HTMLElement>("#mainscreen-blur");
+const settings_exit_bttn = retrieve<HTMLButtonElement>("#settings-exit");
+
+const settings_block = retrieve<HTMLElement>("#settings-blur");
+const settings_block_exit = retrieve<HTMLButtonElement>("#settings-unsaved-exit");
+const settings_block_cancel = retrieve<HTMLButtonElement>("#settings-unsaved-cancel");
+const settingsmap = ["bpm", "default_gain", "wet"] as const;
+
+let new_settings = standard_settings;
+let selected_channel = 0;
+
+interface SettingsData {
+    bpm: number,
+    default_gain: number;
+    wet: number;
+}
+
+function parse_settings(form: HTMLFormElement): SettingsData {
+    const data = new FormData(form);
+    return {
+        bpm: Number(data.get("bpm")),
+        default_gain: Number(data.get("default_gain")),
+        wet: Number(data.get("wet"))
+    }
+}
+
+
+function exit_form(block: HTMLElement) {
+    block.classList.toggle("active", false);
+}
+
+function enter_form(block: HTMLElement) {
+    block.classList.toggle("active", true);
+}
+
+function fill_form() {
+    for (const s of settingsmap) {
+        (settings_form.elements.namedItem(s) as HTMLInputElement).value = String(new_settings[s]);
+    }
+}
+
+entset.button_addEventListener("click", (ent, btn, channel, setting, idx) => {
+    new_settings = entset.settings[idx];
+    selected_channel = idx;
+    enter_form(mainscreen_block);
+    fill_form();
+})
+
+
+settings_form.addEventListener("submit", (event: SubmitEvent) => {
+    event.preventDefault();
+
+    if (!settings_form.checkValidity()) {
+        settings_form.reportValidity();
+        return;
+    }
+
+    const data = parse_settings(settings_form);
+
+    new_settings.bpm = data.bpm;
+    new_settings.default_gain = data.default_gain;
+    new_settings.wet = data.wet;
+
+    if (playbar.active) {
+        playbar.stop();
+        playbar.start_frac = 0;
+        playbar.set(0);
+        set_playbttn_form(false);
+    }
+
+    entset.channels[selected_channel].apply_settings(new_settings);
+    exit_form(mainscreen_block);
+})
+
+
+settings_exit_bttn.onclick = () => {
+    const data = parse_settings(settings_form);
+    let passed = true;
+
+    for (const setting of settingsmap) {
+        if (new_settings[setting] != data[setting]) {
+            passed = false;
+            break;
+        }
+    }
+
+    if (passed) {
+        exit_form(mainscreen_block);
+    } else {
+        enter_form(settings_block);
+    }
+}
+
+
+settings_block_cancel.onclick = () => {
+    exit_form(settings_block);
+}
+
+settings_block_exit.onclick = () => {
+    exit_form(settings_block);
+    exit_form(mainscreen_block);
+}

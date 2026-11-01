@@ -34,6 +34,7 @@ export class EntrySettingsCorrespond {
         this.bttn = [];
         this.channels = [];
         this.sequences = [];
+        this.settings = [];
     }
     validate(extra_cond = true) {
         if (this.ent.length != this.bttn.length) {
@@ -42,6 +43,16 @@ export class EntrySettingsCorrespond {
         if (!extra_cond) {
             throw new Error("extra_cond not met");
         }
+    }
+    master_apply() {
+        this.channels.forEach((ch, idx) => {
+            ch.apply_settings(this.settings[idx]);
+        });
+    }
+    master_apply_override(settings) {
+        this.channels.forEach((ch) => {
+            ch.apply_settings(settings);
+        });
     }
     construct_channels() {
         this.validate();
@@ -67,7 +78,7 @@ export class EntrySettingsCorrespond {
         this.validate();
         this.bttn.forEach((bttn, i) => {
             bttn.addEventListener(event, () => {
-                listener(this.ent[i], bttn, this.channels[i], i);
+                listener(this.ent[i], bttn, this.channels[i], this.settings[i], i);
             });
         });
     }
@@ -75,7 +86,7 @@ export class EntrySettingsCorrespond {
         this.validate();
         this.ent.forEach((ent, i) => {
             ent.addEventListener(event, () => {
-                listener(ent, this.bttn[i], this.channels[i], i);
+                listener(ent, this.bttn[i], this.channels[i], this.settings[i], i);
             });
         });
     }
@@ -156,11 +167,14 @@ export class Playbar {
 }
 export class DNABar {
     init_baseblocks() {
-        for (let i = 0; i < this.bases_limit; i++) {
+        while (this.baseblocks.length < this.bases_limit) {
             const baseblock = document.createElement("div");
-            baseblock.classList.add(...[...this.baseblock_classes.disabled]);
+            baseblock.classList.add(...this.baseblock_classes.disabled);
             this.bar.appendChild(baseblock);
             this.baseblocks.push(baseblock);
+        }
+        while (this.baseblocks.length > this.bases_limit) {
+            this.baseblocks.pop().remove();
         }
     }
     constructor(bar, base_width = 40, space_width = window.innerWidth, baseblock_classes = STANDARD_BASEBLOCK_CLASSES) {

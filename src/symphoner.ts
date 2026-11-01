@@ -193,7 +193,7 @@ export class Master {
     get_settings(): UserSettings {
         return new UserSettings(
             this,
-            this.beattime * 60,
+            60 / this.beattime,
             this.default_gain,
         )
     }
@@ -470,7 +470,7 @@ export class Channel {
                 this.oscs.length,
                 "exp",
                 this.oscs.map((osc) => osc.frequency.value),
-                freqchord,
+                diatonic_chord(nextnote, this.chord_size).map((note) => midi_to_freq(note)),
                 dur50p,
                 this.oscs.map((osc) => osc.frequency)
             )).execute(starttime);

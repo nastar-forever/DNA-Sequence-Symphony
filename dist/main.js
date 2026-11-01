@@ -26,8 +26,8 @@ const pwaves = wtables.map((table) => table ? create_periodic_wave(master.ctx, t
 const irs = await Promise.all(irexturls.map((url) => load_reverb_convolver(master.ctx, irbaseurl + url)));
 standard_settings.ir = irs.length > 0 ? irs[0] : null;
 standard_settings.periodic_waves = pwaves.length > 1 ? pwaves.slice(0, 3) : pwaves.length > 0 ? pwaves[0] : null;
-// entset.construct_channels();
-// entset.construct_sequences();
+entset.construct_channels();
+entset.construct_sequences();
 // DOM manipulators
 function clean_dnaentry(dnaentry) {
     dnaentry = dnaentry.toUpperCase();
@@ -104,6 +104,7 @@ playbttn.onclick = async () => {
     await master.ctx.resume();
     entset.construct_channels();
     entset.construct_sequences();
+    entset.channels.forEach((ch) => { ch.reverb_enabled = true; });
     const zipped = entset.ent.map((ent, idx) => [idx, ent, entset.sequences[idx]]);
     for (const [idx, ent, seq] of zipped) {
         const cleanseq = clean_dnaentry(ent.value).replace(/[ ]/g, "");
@@ -130,25 +131,29 @@ const settings_block = retrieve("#settings-blur");
 const settings_block_exit = retrieve("#settings-unsaved-exit");
 const settings_block_cancel = retrieve("#settings-unsaved-cancel");
 const settingsmap = ["bpm", "default_gain", "wet"];
+let new_settings = entset.settings[0];
 let selected_channel = 0;
 function parse_settings(form) {
     const data = new FormData(form);
     return {
         bpm: Number(data.get("bpm")),
-        default_gain: Number(data.get("default_gain")),
+        default_gain: Number(data.get("gain")),
         wet: Number(data.get("wet"))
     };
 }
 function exit_form() {
     mainscreen_block.style.setProperty("display", "none");
 }
-entset.button_addEventListener("click", (ent, btn, channel, idx) => {
-    selected_channel = idx - 1;
-    mainscreen_block.style.setProperty("display", "block");
-    const data = new FormData(settings_form);
-    for (const setting of settingsmap) {
-        data.set(setting, String(standard_settings[setting]));
+function fill_form() {
+    for (const s of settingsmap) {
+        settings_form.elements.namedItem(s).value = String(new_settings[s]);
     }
+}
+entset.button_addEventListener("click", (ent, btn, channel, setting, idx) => {
+    new_settings = entset.settings[idx];
+    selected_channel = idx;
+    mainscreen_block.style.setProperty("display", "block");
+    fill_form();
 });
 settings_form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -157,16 +162,16 @@ settings_form.addEventListener("submit", async (event) => {
         return;
     }
     const data = parse_settings(settings_form);
-    standard_settings.bpm = data.bpm;
-    standard_settings.default_gain = data.default_gain;
-    standard_settings.wet = data.wet;
-    entset.channels[selected_channel].apply_settings(standard_settings);
+    new_settings.bpm = data.bpm;
+    new_settings.default_gain = data.default_gain;
+    new_settings.wet = data.wet;
+    entset.channels[selected_channel].apply_settings(new_settings);
 });
 settings_exit_bttn.onclick = () => {
     const data = parse_settings(settings_form);
     let passed = true;
     for (const setting of settingsmap) {
-        if (standard_settings[setting] != data[setting]) {
+        if (new_settings[setting] != data[setting]) {
             passed = false;
             break;
         }

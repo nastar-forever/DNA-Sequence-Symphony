@@ -142,7 +142,7 @@ export class Master {
         this.gain.connect(this.ctx.destination);
     }
     get_settings() {
-        return new UserSettings(this, this.beattime * 60, this.default_gain);
+        return new UserSettings(this, 60 / this.beattime, this.default_gain);
     }
     apply_settings(set) {
         this.beattime = 60 / set.bpm;
@@ -323,7 +323,7 @@ export class Channel {
         this.set_oscs_freqs(freqchord, starttime);
         (new TransToken("exp", SILENT_GAIN, this.master.default_gain, dur10p, this.gain.gain)).execute(starttime);
         if (nextnote !== undefined && this.goofy_mode) {
-            (new BulkTransToken(this.oscs.length, "exp", this.oscs.map((osc) => osc.frequency.value), freqchord, dur50p, this.oscs.map((osc) => osc.frequency))).execute(starttime);
+            (new BulkTransToken(this.oscs.length, "exp", this.oscs.map((osc) => osc.frequency.value), diatonic_chord(nextnote, this.chord_size).map((note) => midi_to_freq(note)), dur50p, this.oscs.map((osc) => osc.frequency))).execute(starttime);
         }
         (new TransToken("exp", this.master.default_gain, SILENT_GAIN, dur10p, this.gain.gain)).execute(starttime + dur50p + dur30p + dur10p);
     }

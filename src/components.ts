@@ -53,6 +53,7 @@ export interface ESCListener{
     (ent: HTMLInputElement,
     btn: HTMLButtonElement,
     channel: Channel,
+    settings: UserSettings,
     index: number): void;
 }
 
@@ -65,6 +66,7 @@ export class EntrySettingsCorrespond {
     public bttn: HTMLButtonElement[];
     public channels: Channel[];
     public sequences: Sequence[];
+    public settings: UserSettings[];
 
     constructor(
         public master: Master,
@@ -74,6 +76,7 @@ export class EntrySettingsCorrespond {
         this.bttn = [];
         this.channels = [];
         this.sequences = [];
+        this.settings = [];
     }
 
     private validate(extra_cond = true) {
@@ -84,6 +87,18 @@ export class EntrySettingsCorrespond {
         if (!extra_cond) {
             throw new Error("extra_cond not met");
         }
+    }
+
+    master_apply() {
+        this.channels.forEach((ch, idx) => {
+            ch.apply_settings(this.settings[idx]);
+        });
+    }
+
+    master_apply_override(settings: UserSettings) {
+        this.channels.forEach((ch) => {
+            ch.apply_settings(settings);
+        });
     }
 
     construct_channels() {
@@ -123,7 +138,7 @@ export class EntrySettingsCorrespond {
 
         this.bttn.forEach((bttn, i) => {
             bttn.addEventListener(event, () => {
-                listener(this.ent[i], bttn, this.channels[i], i);
+                listener(this.ent[i], bttn, this.channels[i], this.settings[i], i);
             })
         })
     }
@@ -136,7 +151,7 @@ export class EntrySettingsCorrespond {
 
         this.ent.forEach((ent, i) => {
             ent.addEventListener(event, () => {
-                listener(ent, this.bttn[i], this.channels[i], i)
+                listener(ent, this.bttn[i], this.channels[i], this.settings[i], i)
             })
         })
     }
@@ -247,13 +262,15 @@ export class DNABar {
     private _base_width: number;
 
     init_baseblocks() {
-        for (let i = 0; i < this.bases_limit; i++) {
+        while (this.baseblocks.length < this.bases_limit) {
             const baseblock = document.createElement("div");
-            baseblock.classList.add(...[...this.baseblock_classes.disabled]);
-
+            baseblock.classList.add(...this.baseblock_classes.disabled);
             this.bar.appendChild(baseblock);
-
             this.baseblocks.push(baseblock);
+        }
+
+        while (this.baseblocks.length > this.bases_limit) {
+            this.baseblocks.pop()!.remove();
         }
     }
 

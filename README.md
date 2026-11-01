@@ -1,4 +1,7 @@
 # What is this?
+> ### Disclaimer:
+> This project is still on it's early stages. Do not expect a great symphony from it.
+
 Have you ever thinking to hear a **DNA sequence**?
 Now you can!
 
@@ -51,4 +54,3 @@ npx serve
 6. Paste the link into your browser.
 7. Have fun!
 ---
-This project still on it's early phase, there's still a lot of my plans to be implemented, so stay tuned!

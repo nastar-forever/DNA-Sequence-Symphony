@@ -8,10 +8,11 @@ import {
 
 
 const mainscreen_errbox = retrieve<HTMLElement>("#mainscreen-errbox");
-const errmsg = retrieve<HTMLElement>("#errmsg");
+const mainscreen_errmsg = retrieve<HTMLElement>("#errmsg");
 const el_playbar = retrieve<HTMLInputElement>("#playhead");
 const playbttn = retrieve<HTMLButtonElement>("#playback-button");
 const temp_el_dnabar = retrieve<HTMLElement>("#dnabar");
+
 
 const master = new Master();
 const standard_settings = new UserSettings(
@@ -59,7 +60,7 @@ function clean_dnaentry(dnaentry: string): string {
 
 function show_error(msg: string) {
     mainscreen_errbox.style.setProperty("display", "flex");
-    errmsg.textContent = msg;
+    mainscreen_errmsg.textContent = msg;
 }
 
 function hide_error() {
@@ -167,4 +168,96 @@ playbttn.onclick = async () => {
     playbar.start_at(playbar.start_frac);
     playbar.tick();
     set_playbttn_form(true);
+}
+
+
+
+
+// SETTINGS SCREEN
+const settings_form = retrieve<HTMLFormElement>("#settings-form");
+const mainscreen_block = retrieve<HTMLElement>("#mainscreen-blur");
+const settings_exit_bttn = retrieve<HTMLButtonElement>("#settings-exit");
+
+const settings_block = retrieve<HTMLElement>("#settings-blur");
+const settings_block_exit = retrieve<HTMLButtonElement>("#settings-unsaved-exit");
+const settings_block_cancel = retrieve<HTMLButtonElement>("#settings-unsaved-cancel");
+const settingsmap = ["bpm", "default_gain", "wet"] as const;
+
+let selected_channel = 0;
+
+interface SettingsData {
+    bpm: number,
+    default_gain: number;
+    wet: number;
+}
+
+function parse_settings(form: HTMLFormElement): SettingsData {
+    const data = new FormData(form);
+    return {
+        bpm: Number(data.get("bpm")),
+        default_gain: Number(data.get("default_gain")),
+        wet: Number(data.get("wet"))
+    }
+}
+
+
+function exit_form() {
+    mainscreen_block.style.setProperty("display", "none");
+}
+
+
+entset.button_addEventListener("click", (ent, btn, channel, idx) => {
+    selected_channel = idx-1;
+    mainscreen_block.style.setProperty("display", "block");
+    const data = new FormData(settings_form);
+
+    for (const setting of settingsmap) {
+        data.set(setting, String(standard_settings[setting]));
+    }
+})
+
+
+settings_form.addEventListener("submit", async (event: SubmitEvent) => {
+    event.preventDefault();
+
+    if (!settings_form.checkValidity()) {
+        settings_form.reportValidity();
+        return;
+    }
+
+    const data = parse_settings(settings_form);
+
+    standard_settings.bpm = data.bpm;
+    standard_settings.default_gain = data.default_gain;
+    standard_settings.wet = data.wet;
+
+    entset.channels[selected_channel].apply_settings(standard_settings);
+})
+
+
+settings_exit_bttn.onclick = () => {
+    const data = parse_settings(settings_form);
+    let passed = true;
+
+    for (const setting of settingsmap) {
+        if (standard_settings[setting] != data[setting]) {
+            passed = false;
+            break;
+        }
+    }
+
+    if (passed) {
+        exit_form();
+    } else {
+        settings_block.style.setProperty("display", "block");
+    }
+}
+
+
+settings_block_cancel.onclick = () => {
+    settings_block.style.setProperty("display", "none");
+}
+
+settings_block_exit.onclick = () => {
+    exit_form();
 }

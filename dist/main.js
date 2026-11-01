@@ -3,7 +3,7 @@ import { ensure_acgt } from "./dna.js";
 import { UserSettings } from "./settings_container.js";
 import { Master, load_gcl_wavetable, create_periodic_wave, load_reverb_convolver } from "./symphoner.js";
 const mainscreen_errbox = retrieve("#mainscreen-errbox");
-const errmsg = retrieve("#errmsg");
+const mainscreen_errmsg = retrieve("#errmsg");
 const el_playbar = retrieve("#playhead");
 const playbttn = retrieve("#playback-button");
 const temp_el_dnabar = retrieve("#dnabar");
@@ -37,7 +37,7 @@ function clean_dnaentry(dnaentry) {
 }
 function show_error(msg) {
     mainscreen_errbox.style.setProperty("display", "flex");
-    errmsg.textContent = msg;
+    mainscreen_errmsg.textContent = msg;
 }
 function hide_error() {
     mainscreen_errbox.style.setProperty("display", "none");
@@ -121,4 +121,66 @@ playbttn.onclick = async () => {
     playbar.start_at(playbar.start_frac);
     playbar.tick();
     set_playbttn_form(true);
+};
+// SETTINGS SCREEN
+const settings_form = retrieve("#settings-form");
+const mainscreen_block = retrieve("#mainscreen-blur");
+const settings_exit_bttn = retrieve("#settings-exit");
+const settings_block = retrieve("#settings-blur");
+const settings_block_exit = retrieve("#settings-unsaved-exit");
+const settings_block_cancel = retrieve("#settings-unsaved-cancel");
+const settingsmap = ["bpm", "default_gain", "wet"];
+let selected_channel = 0;
+function parse_settings(form) {
+    const data = new FormData(form);
+    return {
+        bpm: Number(data.get("bpm")),
+        default_gain: Number(data.get("default_gain")),
+        wet: Number(data.get("wet"))
+    };
+}
+function exit_form() {
+    mainscreen_block.style.setProperty("display", "none");
+}
+entset.button_addEventListener("click", (ent, btn, channel, idx) => {
+    selected_channel = idx - 1;
+    mainscreen_block.style.setProperty("display", "block");
+    const data = new FormData(settings_form);
+    for (const setting of settingsmap) {
+        data.set(setting, String(standard_settings[setting]));
+    }
+});
+settings_form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!settings_form.checkValidity()) {
+        settings_form.reportValidity();
+        return;
+    }
+    const data = parse_settings(settings_form);
+    standard_settings.bpm = data.bpm;
+    standard_settings.default_gain = data.default_gain;
+    standard_settings.wet = data.wet;
+    entset.channels[selected_channel].apply_settings(standard_settings);
+});
+settings_exit_bttn.onclick = () => {
+    const data = parse_settings(settings_form);
+    let passed = true;
+    for (const setting of settingsmap) {
+        if (standard_settings[setting] != data[setting]) {
+            passed = false;
+            break;
+        }
+    }
+    if (passed) {
+        exit_form();
+    }
+    else {
+        settings_block.style.setProperty("display", "block");
+    }
+};
+settings_block_cancel.onclick = () => {
+    settings_block.style.setProperty("display", "none");
+};
+settings_block_exit.onclick = () => {
+    exit_form();
 };

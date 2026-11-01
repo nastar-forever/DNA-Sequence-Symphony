@@ -52,7 +52,8 @@ export function retrieve_all<T extends Element>(
 export interface ESCListener{
     (ent: HTMLInputElement,
     btn: HTMLButtonElement,
-    channel: Channel): void;
+    channel: Channel,
+    index: number): void;
 }
 
 export interface ESCValSetFunction<T extends HTMLElement>{
@@ -122,7 +123,7 @@ export class EntrySettingsCorrespond {
 
         this.bttn.forEach((bttn, i) => {
             bttn.addEventListener(event, () => {
-                listener(this.ent[i], bttn, this.channels[i]);
+                listener(this.ent[i], bttn, this.channels[i], i);
             })
         })
     }
@@ -135,7 +136,7 @@ export class EntrySettingsCorrespond {
 
         this.ent.forEach((ent, i) => {
             ent.addEventListener(event, () => {
-                listener(ent, this.bttn[i], this.channels[i])
+                listener(ent, this.bttn[i], this.channels[i], i)
             })
         })
     }

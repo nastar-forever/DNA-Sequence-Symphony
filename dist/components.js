@@ -67,7 +67,7 @@ export class EntrySettingsCorrespond {
         this.validate();
         this.bttn.forEach((bttn, i) => {
             bttn.addEventListener(event, () => {
-                listener(this.ent[i], bttn, this.channels[i]);
+                listener(this.ent[i], bttn, this.channels[i], i);
             });
         });
     }
@@ -75,7 +75,7 @@ export class EntrySettingsCorrespond {
         this.validate();
         this.ent.forEach((ent, i) => {
             ent.addEventListener(event, () => {
-                listener(ent, this.bttn[i], this.channels[i]);
+                listener(ent, this.bttn[i], this.channels[i], i);
             });
         });
     }

@@ -91,6 +91,7 @@ h2 {
 
     box-shadow: 0px 4px 4px 0px #FF900040;
     transition: box-shadow 0.3s ease;
+    transition: transform 0.1s ease;
 
     background-repeat: no-repeat;
     background-position: center;
@@ -107,6 +108,11 @@ h2 {
 
 #playback-button:hover {
     box-shadow: 0px 8px 4px 0px #FF900040;
+}
+
+#playback-button:active {
+    transform: scale(1.002);
+    background-color: #ff910013;
 }
 
 .entries-column {
@@ -287,8 +293,8 @@ h2 {
 }
 
 /* SETTINGS */
-#mainscreen-blur {
-    display: block;
+.screen-blur {
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
@@ -319,7 +325,7 @@ h2 {
     box-shadow: 0px 0px 50px 0px #fffffe40;
 }
 
-#settings-screen-title {
+.settings-screen-title {
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -409,4 +415,109 @@ h2 {
 #settings-errbox {
     display: none;
     width: 94%;
+}
+
+#settings-apply {
+    box-sizing: border-box;
+    width: 100%;
+    margin-top: 2vh;
+    margin-bottom: 1vh;
+    height: 4vh;
+    align-self: center;
+
+    border: 1px solid #D41010;
+    border-radius: 1vh;
+    padding: 2vh;
+    
+    font-weight: bold;
+    font-size: 2vh;
+    font-family: "Consolas", "Times New Roman";
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0px 0px 7.3px 0px #FF900040;
+    transition: box-shadow 0.3s ease;
+    transition: transform 0.1s ease;
+    background-color: whitesmoke;
+}
+
+#settings-apply:hover {
+    box-shadow: 0px 3px 7.3px 0px #FF900040;
+}
+
+#settings-apply:active {
+    transform: scale(1.002);
+    background-color: #ff910013;
+}
+
+
+#settings-unsaved-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    
+    width: 30vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    background-color: whitesmoke;
+
+    border: 1px solid #D41010;
+    border-radius: 3vh;
+    box-shadow: 0px 0px 50px 0px #fffffe40;
+}
+
+#settings-unsaved-title {
+    font-size: 3vh;
+    font-weight: bolder;
+    margin: 0;
+}
+
+#settings-unsaved-screen p {
+    font-size: 2vh;
+    font-weight: bold;
+}
+
+.settings-unsaved-button {
+    box-sizing: border-box;
+    height: 4vh;
+    width: 49%;
+    font-family: "Consolas", "Times New Romans";
+    font-size: 2vh;
+    font-weight: bold;
+
+    border: 1px solid #D41010;
+    border-radius: 1vh;
+    padding: 2vh;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0px 0px 7.3px 0px #FF900040;
+    transition: box-shadow 0.3s ease;
+    transition: transform 0.1s ease;
+    background-color: whitesmoke;
+}
+
+.settings-unsaved-button:hover {
+    box-shadow: 0px 3px 7.3px 0px #FF900040;
+}
+
+.settings-unsaved-button:active {
+    transform: scale(1.002);
+    background-color: #ff910013;
+}
+
+#settings-unsaved-exit {
+    background-color: #D41010;
+    color: whitesmoke;
+}
+
+#settings-unsaved-exit:active {
+    background-color: #d41010cc;
 }

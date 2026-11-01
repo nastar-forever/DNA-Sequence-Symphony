@@ -20,7 +20,7 @@ h1 {
     align-items: center;
     flex-wrap: wrap;
     align-content: center;
-    width: 60vw;
+    width: calc(56vw + 7.3vh);
 }
 
 .row-input {
@@ -40,40 +40,40 @@ h1 {
 }
 
 #playhead::-webkit-slider-runnable-track {
-    height: 1vw;
+    height: 1.5vh;
     border: 1px solid #D41010;
-    border-radius: 0.5vw;
+    border-radius: 1vh;
     background: linear-gradient(to right, #D41010 0%, #D41010 var(--progress), transparent var(--progress));
 }
 
 #playhead::-webkit-slider-thumb {
     appearance: none;
-    width: 0.52vw;
-    height: 1.72vw;
+    width: 1.02vh;
+    height: 2.22vh;
     background-color: #D41010;
-    margin-top: -0.36vw;
-    border-radius: 0.1vw;
+    margin-top: -0.51vh;
+    border-radius: 0.3vh;
 }
 
 #playhead::-moz-range-track {
-    height: 1vw;
+    height: 1.5vh;
     border: 1px solid #D41010;
     border-radius: 0.5vw;
     background: transparent;
 }
 
 #playhead::-moz-range-progress {
-    height: 1vw;
+    height: 1.5vh;
     border-radius: 0.5vw;
     background-color: #D41010;
 }
 
 #playhead::-moz-range-thumb {
-    width: 0.52vw;
-    height: 1.72vw;
+    width: 1.02vh;
+    height: 2.22vw;
     border: none;
     background-color: #D41010;
-    border-radius: 0.1vw;
+    border-radius: 0.3vh;
 }
 
 #playback-button {
@@ -104,31 +104,85 @@ h1 {
     box-shadow: 0px 8px 4px 0px #FF900040;
 }
 
-
-.dna-entries {
+.entries-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     width: 100%;
-    height: 3vh;
+}
+
+.entry-row {
+    display: flex;
+    flex-direction: row;
+    
+    width: 100%;
+    margin-top: 4vh;
+    justify-content: space-between;
+}
+
+.entry-settings {
+    box-sizing: border-box;
+    height: 7vh;
+    padding: 2vh;
+    aspect-ratio: 1.1/1;
+
+    border: 1px solid #D41010;
+    border-radius: 0.2vh;
+    border-top-right-radius: 3.2vh;
+    
+    box-shadow: 0px 0px 7.3px 0px #FF900040;
+    box-shadow: 0px 0px 7.3px 0px #FF900040;
+    background-color: whitesmoke;
+    transition: box-shadow 0.3s ease;
+
+    background-image: url("assets/play.svg"); /* TEMPORARY */
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 55%;
+}
+
+.entry-settings:hover {
+    box-shadow: 0px 4px 4px 0px #FF900040;
+}
+
+.dna-entry-wrapper {
+    box-sizing: border-box;
+    width: calc(56vw - 1vh);
+    height: 7vh;
     padding: 2vh;
     font-size: 2vh;
-    resize: none;
     background-color: whitesmoke;
 
     border: 1px solid #D41010;
-    border-radius: 3.2vh;
-    border-bottom-left-radius: 0.2vh;
-    border-bottom-right-radius: 0.2vh;
-
+    border-radius: 0.2vh;
+    border-top-left-radius: 3.2vh;
+    
     box-shadow: 0px 0px 7.3px 0px #FF900040;
     transition: box-shadow 0.7s ease;
+}
+
+.dna-entry {
+    display: block;
+    box-sizing: border-box;
+
+    width: 100%;
+    height: calc(3vh + 12px);
+    padding: 0px;
+    
+    border: none;
+    outline: none;
+    background: transparent;
+
+    resize: none;
+    font-size: 2vh;
     font-family: "Consolas", "Times New Roman";
 
-    white-space: pre;
+    white-space: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
+    scrollbar-width: hidden;
     scrollbar-width: thin;
     scrollbar-color: #D41010 #FF900040;
-
-    margin-top: 4vh;
 }
 
 #dnaentry:focus {

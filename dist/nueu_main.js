@@ -13,7 +13,7 @@ const entset = new EntrySettingsCorrespond(master, standard_settings);
 const playbar = new Playbar(el_playbar, master, entset);
 const temp_dnabar = new DNABar(temp_el_dnabar, 40);
 // Planning to have an "orchestra" feature (lol)
-retrieve_all(".dna-entries", entset.ent);
+retrieve_all(".dna-entry", entset.ent);
 retrieve_all(".entry-settings", entset.bttn);
 const wtbaseurl = "https://raw.githubusercontent.com/GoogleChromeLabs/web-audio-samples/refs/heads/main/src/demos/wavetable-synth/wave-tables/";
 const wtexturls = ["Celeste", "Piano", "Twelve_OpTines"];

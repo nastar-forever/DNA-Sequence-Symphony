@@ -27,7 +27,7 @@ const temp_dnabar = new DNABar(temp_el_dnabar, 40);
 
 
 // Planning to have an "orchestra" feature (lol)
-retrieve_all<HTMLInputElement>(".dna-entries", entset.ent);
+retrieve_all<HTMLInputElement>(".dna-entry", entset.ent);
 retrieve_all<HTMLButtonElement>(".entry-settings", entset.bttn);
 
 
@@ -66,7 +66,7 @@ function hide_error() {
     errbox.style.setProperty("display", "none");
 }
 
-function toggler_playbttn_form(playing: boolean) {
+function set_playbttn_form(playing: boolean) {
     playbttn.classList.toggle("stopform", playing);
     playbttn.classList.toggle("playform", !playing);
 }
@@ -108,6 +108,7 @@ entset.entry_addEventListener("input", (ent) => {
         playbar.stop();
         playbar.start_frac = 0;
         playbar.set(0);
+        set_playbttn_form(false);
     }
 })
 
@@ -135,30 +136,35 @@ setInterval(() => {playbar.tick()}, playbar.tick_interval);
 playbttn.onclick = async () => {
     if (playbar.active) {
         playbar.stop();
-        toggler_playbttn_form(false);
+        set_playbttn_form(false);
         return;
     }
-
+    
     await master.ctx.resume();
-    let parse_rsult = true;
 
     entset.construct_channels();
     entset.construct_sequences();
 
-    entset.sequences.forEach((seq, idx) => {
-        let baseseq = clean_dnaentry(entset.ent[idx].value).replace(/[ ]/g, "");
-        console.log(`Parsing sequence ${idx}: ${baseseq}`);
-        parse_rsult = seq.parse_sequence(baseseq) !== null && parse_rsult;
+    const zipped = entset.ent.map((ent, idx): [number, HTMLInputElement, Sequence] => [idx, ent, entset.sequences[idx]]);
 
-        if (!parse_rsult) {
+    for (const [idx, ent, seq] of zipped) {
+        const cleanseq = clean_dnaentry(ent.value).replace(/[ ]/g, "");
+        const parse_rsult = seq.parse_sequence(cleanseq);
+        const seqlen = cleanseq.length;
+
+        if (parse_rsult === null) {
+            const nearestallowed = Math.max(12, Math.round(seqlen / 3) * 3);
+            show_error(`The amounts of characters given on a DNA sequence must be more than 12 and a multiple of three in order for the musicalizer to work. Meanwhile, sequence #${idx+1} got ${seqlen} characters. Why not try ${nearestallowed} characters instead?`);
             return;
         }
 
         seq.bound();
-    })
+    }
+
+    hide_error();
 
     playbar.active = true;
     playbar.start_at(playbar.start_frac);
     playbar.tick();
-    toggler_playbttn_form(true);
+    set_playbttn_form(true);
 }

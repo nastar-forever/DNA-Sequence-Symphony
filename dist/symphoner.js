@@ -142,7 +142,7 @@ export class Master {
         this.gain.connect(this.ctx.destination);
     }
     get_settings() {
-        return new UserSettings(this, this.beattime * 60, this.default_gain);
+        return new UserSettings(this, 60 / this.beattime, this.default_gain);
     }
     apply_settings(set) {
         this.beattime = 60 / set.bpm;
@@ -223,11 +223,29 @@ export class Channel {
             osc.frequency.setValueAtTime(freq, time);
         });
     }
-    trans_oscs(ramptype, freqs, duration, time) {
-        time = time ?? this.master.ctx.currentTime;
-        this.oscs.forEach((osc, index) => {
-            (new TransToken(ramptype, osc.frequency.value, freqs[index], duration, osc.frequency)).execute(time);
-        });
+    connect_ir() {
+        if (this.ir) {
+            this.ir.connect(this._wet).connect(this.master.gain);
+        }
+    }
+    update_periodic_waves() {
+        function stfu_typescript(val) {
+            return val instanceof PeriodicWave;
+        }
+        if (this.periodic_waves) {
+            if (Array.isArray(this.periodic_waves)) {
+                if (this.periodic_waves.length != this.chord_size) {
+                    throw new Error(`periodic_waves length (${this.periodic_waves.length}) missmatched chord_size (${this.chord_size})`);
+                }
+                this.periodic_waves.forEach((wave, index) => { this.oscs[index].setPeriodicWave(wave); });
+            }
+            else {
+                const singular_pwave = this.periodic_waves;
+                if (stfu_typescript(singular_pwave)) {
+                    this.oscs.forEach((osc) => { osc.setPeriodicWave(singular_pwave); });
+                }
+            }
+        }
     }
     constructor(master, ir, periodic_waves, wet = 0.3, chord_size = 3, trans_duration = 0.1, goofy_mode = false) {
         this.master = master;
@@ -242,17 +260,7 @@ export class Channel {
         this.oscs = Array.from({ length: chord_size }, (_, __) => {
             return this.master.ctx.createOscillator();
         });
-        if (periodic_waves) {
-            if (Array.isArray(periodic_waves)) {
-                if (periodic_waves.length != chord_size) {
-                    throw new Error(`periodic_waves length (${periodic_waves.length}) missmatched chord_size (${chord_size})`);
-                }
-                periodic_waves.forEach((wave, index) => { this.oscs[index].setPeriodicWave(wave); });
-            }
-            else {
-                this.oscs.forEach((osc) => { osc.setPeriodicWave(periodic_waves); });
-            }
-        }
+        this.update_periodic_waves();
         this.gain = master.ctx.createGain();
         this.gain.gain.value = SILENT_GAIN;
         this._wet = master.ctx.createGain();
@@ -261,14 +269,12 @@ export class Channel {
         this.dry.gain.value = 1;
         this.connect_oscs(this.gain);
         this.gain.connect(this.dry).connect(master.gain);
-        if (this.ir) {
-            this.ir.connect(this._wet).connect(master.gain);
-        }
+        this.connect_ir();
         this.start_oscs();
         this._reverb_enabled = false;
     }
     get_settings() {
-        return new UserSettings(this, this.master.beattime * 60, this.master.default_gain, this.ir, this.chord_size, this.periodic_waves, this.wet, this.goofy_mode);
+        return new UserSettings(this, 60 / this.master.beattime, this.master.default_gain, this.ir, this.chord_size, this.periodic_waves, this.wet, this.goofy_mode);
     }
     apply_settings(set) {
         this.master.beattime = 60 / set.bpm;
@@ -278,6 +284,8 @@ export class Channel {
         this.periodic_waves = set.periodic_waves;
         this.wet = set.wet;
         this.goofy_mode = set.goofy_mode;
+        this.connect_ir();
+        this.update_periodic_waves();
     }
     get reverb_enabled() {
         return this._reverb_enabled;
@@ -290,12 +298,15 @@ export class Channel {
             throw Error(`Wet value cannot exceeds one. Got ${value} instead.`);
         }
         this._wet.gain.setValueAtTime(value, this.master.ctx.currentTime);
+        if (this._reverb_enabled) {
+            this.dry.gain.setValueAtTime(Math.max(SILENT_GAIN, 1 - value), this.master.ctx.currentTime);
+        }
     }
     set reverb_enabled(value) {
         if (!this.ir || value === this._reverb_enabled) {
             return;
         }
-        const to_dry = value ? 1 - this._wet.gain.value : 1;
+        const to_dry = value ? Math.max(SILENT_GAIN, 1 - this._wet.gain.value) : 1;
         (new TransToken("exp", this.dry.gain.value, to_dry, this.trans_duration, this.dry.gain)).execute(this.master.ctx.currentTime);
         if (value) {
             this.gain.connect(this.ir);
@@ -315,7 +326,7 @@ export class Channel {
         this.set_oscs_freqs(freqchord, starttime);
         (new TransToken("exp", SILENT_GAIN, this.master.default_gain, dur10p, this.gain.gain)).execute(starttime);
         if (nextnote !== undefined && this.goofy_mode) {
-            (new BulkTransToken(this.oscs.length, "exp", this.oscs.map((osc) => osc.frequency.value), freqchord, dur50p, this.oscs.map((osc) => osc.frequency))).execute(starttime);
+            (new BulkTransToken(this.oscs.length, "exp", freqchord, diatonic_chord(nextnote, this.chord_size).map((note) => midi_to_freq(note)), dur50p, this.oscs.map((osc) => osc.frequency))).execute(starttime);
         }
         (new TransToken("exp", this.master.default_gain, SILENT_GAIN, dur10p, this.gain.gain)).execute(starttime + dur50p + dur30p + dur10p);
     }
@@ -325,6 +336,28 @@ export class Channel {
         this.gain.gain.setValueAtTime(Math.max(this.gain.gain.value, SILENT_GAIN), now);
         this.gain.gain.exponentialRampToValueAtTime(SILENT_GAIN, now + fadeout);
         this.oscs.forEach((osc) => osc.frequency.cancelScheduledValues(now));
+    }
+    terminate() {
+        const stoptime = this.master.ctx.currentTime + 0.05;
+        this.silence(this.trans_duration);
+        this.oscs.forEach((osc) => {
+            osc.onended = () => {
+                osc.disconnect();
+            };
+            osc.stop(stoptime);
+        });
+        if (this.ir) {
+            if (this._reverb_enabled) {
+                this.gain.disconnect(this.ir);
+            }
+            this.ir.disconnect(this._wet);
+        }
+        setTimeout(() => {
+            this.gain.disconnect();
+            this.dry.disconnect();
+            this._wet.disconnect();
+        }, 100);
+        this._reverb_enabled = false;
     }
 }
 export class PlayableBases {

@@ -1,4 +1,4 @@
-import {Base, DNAString, to_singular_bases} from "./dna.js"
+import {Base, DNAString, STANDARD_BASE_COLORS, to_singular_bases} from "./dna.js"
 import {BulkTransToken, Channel, Master, Sequence} from "./symphoner.js";
 import {UserSettings} from "./settings_container.js";
 
@@ -32,7 +32,7 @@ export function retrieve<T extends Element>(selector: string): T {
 export function retrieve_all<T extends Element>(
     selector: string,
     buffer?: T[]
-): NodeList {
+): NodeListOf<T> {
     const elements = document.querySelectorAll<T>(selector);
 
     if (elements.length <= 0) {
@@ -46,6 +46,121 @@ export function retrieve_all<T extends Element>(
     }
 
     return elements;
+}
+
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+export type DotBorderPosition = "in"|"out"|"mid";
+
+export interface DotBorder {
+    render(): void;
+    dot_size: number;
+    spacing: number;
+    border_pos: DotBorderPosition;
+}
+
+export class StandardDotBorder implements DotBorder {
+    private svg: SVGSVGElement;
+    private paths: SVGPathElement[] = [];
+    private observer: ResizeObserver;
+    private _base_colors: string[];
+
+    private init_paths() {
+        this.paths.forEach((path) => {
+            this.svg.removeChild(path);
+            path.remove();
+        });
+
+        this.paths.length = 0;
+
+        this._base_colors.forEach((color, index) => {
+            const path = document.createElementNS(SVG_NS, "path");
+            path.setAttribute("fill", "none");
+            path.setAttribute("stroke", color);
+            path.setAttribute("stroke-width", String(this.dot_size));
+            path.setAttribute("stroke-linecap", "round");
+            path.setAttribute("stroke-dasharray", `0.001 ${this._base_colors.length}`);
+            path.setAttribute("stroke-dashoffset", String(-index));
+
+            this.svg.appendChild(path);
+            this.paths.push(path);
+        })
+    }
+
+    constructor(
+        readonly target: HTMLElement,
+        public dot_size = 4,
+        public spacing = 4,
+        public border_pos: DotBorderPosition = "in",
+        base_colors = STANDARD_BASE_COLORS
+    ) {
+        this.svg = document.createElementNS(SVG_NS, "svg");
+        this.target.appendChild(this.svg);
+        this._base_colors = base_colors;
+
+        this.init_paths();
+
+        this.observer = new ResizeObserver(() => {
+            this.render();
+        })
+
+        this.observer.observe(target);
+    }
+
+    get base_colors() {
+        return this._base_colors;
+    }
+
+    set base_colors(colors: string[]) {
+        this.base_colors = colors;
+        this.init_paths();
+    }
+
+
+    private arc_command(radii: number, endx: number, endy: number): string {
+        return `A ${radii} ${radii} 0 0 1 ${endx} ${endy}`;
+    }
+
+    render(): void {
+        const shrink_factor = this.dot_size / 2 * (this.border_pos === "out" ? -1 : this.border_pos === "mid" ? 0 : 1);
+
+        const bordersize = this.target.getBoundingClientRect();
+        const width = bordersize.width - shrink_factor * 2;
+        const height = bordersize.height - shrink_factor * 2;
+
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+
+        const cornersmap: string[] = ["top-left", "top-right", "bottom-left", "bottom-right"];
+        const compstyle = getComputedStyle(this.target);
+
+        const [tl, tr, bl, br] = cornersmap.map((cname) => {
+            let ret = parseFloat(compstyle.getPropertyValue("border-" + cname + "-radius"));
+            return Math.max(0, ret - shrink_factor);
+        });
+        
+        const [rw_top, rw_bottom] = [width-tl-tr, width-bl-br];
+        const [rh_left, rh_right] = [height-tl-bl, height-tr-br];
+
+        const dstring =
+        `M ${tl} 0 h ${rw_top} ${this.arc_command(tr, width, tr)}`
+        + `v ${rh_right} ${this.arc_command(br, width-br, height)}`
+        + `h ${-rw_bottom} ${this.arc_command(bl, 0, height-bl)}`
+        + `v ${-rh_left} ${this.arc_command(tl, tl, 0)}`;
+
+        this.paths.forEach((path) => {
+            path.setAttribute("d", dstring);
+            path.setAttribute("transform", `translate(${shrink_factor}, ${shrink_factor})`);
+        });
+
+        const len = this._base_colors.length;
+        const perim_units = String(Math.max(len, Math.floor(this.paths[0].getTotalLength() / this.spacing / len) * len));
+        this.paths.forEach((path) => {
+            path.setAttribute("pathLength", perim_units);
+        });
+    }
 }
 
 

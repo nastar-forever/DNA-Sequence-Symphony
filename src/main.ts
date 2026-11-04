@@ -1,4 +1,4 @@
-import {DNABar, EntrySettingsCorrespond, Playbar, retrieve, retrieve_all} from "./components.js"
+import {DNABar, EntrySettingsCorrespond, Playbar, retrieve, retrieve_all, StandardDotBorder} from "./components.js"
 import {ensure_acgt} from "./dna.js"
 import { UserSettings } from "./settings_container.js";
 import {
@@ -25,6 +25,23 @@ const standard_settings = new UserSettings(
 const entset = new EntrySettingsCorrespond(master, standard_settings);
 const playbar = new Playbar(el_playbar, master, entset);
 const temp_dnabar = new DNABar(temp_el_dnabar, 40);
+
+const dot_borders_el = retrieve_all<HTMLElement>(".dna-dot-border");
+const dot_borders: StandardDotBorder[] = [];
+
+for (const el of dot_borders_el) {
+    const dot_size = parseFloat(el.style.getPropertyValue("--dborder-dot-size"));
+    const spacing = parseFloat(el.style.getPropertyPriority("--dborder-spacing"))
+
+    const dotborder = new StandardDotBorder(
+        el,
+        Number.isNaN(dot_size) ? undefined : dot_size,
+        Number.isNaN(spacing) ? undefined : spacing
+    );
+    dotborder.render();
+
+    dot_borders.push(dotborder);
+}
 
 
 // Planning to have an "orchestra" feature (lol)

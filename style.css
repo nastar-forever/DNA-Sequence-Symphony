@@ -1,3 +1,10 @@
+:root {
+    --a-color: #2B63FF;
+    --c-color: #FF2B36;
+    --g-color: #179C3D;
+    --t-color: #FF912B;
+}
+
 body {
     font-family: "Consolas", "Times New Roman";
     display: flex;
@@ -136,7 +143,7 @@ h2 {
     padding: 2vh;
     width: 5vh;
 
-    border: 1px solid #D41010;
+    /* border: 1px solid #D41010; */
     border-radius: 0.2vh;
     border-top-right-radius: 3.2vh;
     
@@ -162,7 +169,7 @@ h2 {
     font-size: 2vh;
     background-color: whitesmoke;
 
-    border: 1px solid #D41010;
+    /* border: 1px solid #D41010; */
     border-radius: 0.2vh;
     border-top-left-radius: 3.2vh;
     
@@ -265,7 +272,7 @@ h2 {
 }
 
 .adenine {
-    background-color: #2B63FF;
+    background-color: var(--a-color);
     --height: 2vh;
     animation-name: dna_bounce;
     animation-duration: 0.3s;
@@ -273,7 +280,7 @@ h2 {
 }
 
 .cytosine {
-    background-color: #FF2B36;
+    background-color: var(--c-color);
     --height: 2.5vh;
     animation-name: dna_bounce;
     animation-duration: 0.3s;
@@ -281,7 +288,7 @@ h2 {
 }
 
 .guanine {
-    background-color: #179C3D;
+    background-color: var(--g-color);
     --height: 3vh;
     animation-name: dna_bounce;
     animation-duration: 0.3s;
@@ -289,7 +296,7 @@ h2 {
 }
 
 .thymine {
-    background-color: #FF912B;
+    background-color: var(--t-color);
     --height: 3.5vh;
     animation-name: dna_bounce;
     animation-duration: 0.3s;
@@ -347,7 +354,7 @@ h2 {
     overflow-y: auto;
     background-color: whitesmoke;
 
-    border: 1px solid #D41010;
+    /* border: 1px solid #D41010; */
     border-radius: 3vh;
     box-shadow: 0px 0px 50px 0px #fffffe40;
 }
@@ -364,7 +371,7 @@ h2 {
     width: 100%;
     height: 9%;
 
-    border-bottom: 1px solid #D41010;
+    /* border-bottom: 1px solid #D41010; */
     margin-bottom: 1px;
 }
 
@@ -457,7 +464,7 @@ h2 {
     height: 4vh;
     align-self: center;
 
-    border: 1px solid #D41010;
+    /* border: 1px solid #D41010; */
     border-radius: 1vh;
     padding: 2vh;
     
@@ -498,7 +505,7 @@ h2 {
     overflow-y: auto;
     background-color: whitesmoke;
 
-    border: 1px solid #D41010;
+    /* border: 1px solid #D41010; */
     border-radius: 3vh;
     box-shadow: 0px 0px 50px 0px #fffffe40;
 }

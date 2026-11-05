@@ -93,12 +93,20 @@ export class StandardDotBorder implements DotBorder {
         public dot_size = 4,
         public spacing = 4,
         public border_pos: DotBorderPosition = "in",
-        base_colors = STANDARD_BASE_COLORS
+        base_colors = STANDARD_BASE_COLORS,
+        svg_class = "dot-border-svg"
     ) {
         this.svg = document.createElementNS(SVG_NS, "svg");
         this.target.appendChild(this.svg);
-        this._base_colors = base_colors;
 
+        const compstyle = getComputedStyle(target);
+        if (compstyle.position === 'static') {
+            target.style.setProperty("position", "relative");
+        }
+        
+        this.svg.classList.add(svg_class);
+
+        this._base_colors = base_colors;
         this.init_paths();
 
         this.observer = new ResizeObserver(() => {
@@ -137,7 +145,9 @@ export class StandardDotBorder implements DotBorder {
         const compstyle = getComputedStyle(this.target);
 
         const [tl, tr, bl, br] = cornersmap.map((cname) => {
-            let ret = parseFloat(compstyle.getPropertyValue("border-" + cname + "-radius"));
+            const retraw = compstyle.getPropertyValue("border-" + cname + "-radius");
+            let ret = parseFloat(retraw);
+            ret = retraw.endsWith("%") ? ret / 100 * Math.min(bordersize.width, bordersize.height) : ret;
             return Math.max(0, ret - shrink_factor);
         });
         

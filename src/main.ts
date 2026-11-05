@@ -30,13 +30,15 @@ const dot_borders_el = retrieve_all<HTMLElement>(".dna-dot-border");
 const dot_borders: StandardDotBorder[] = [];
 
 for (const el of dot_borders_el) {
-    const dot_size = parseFloat(el.style.getPropertyValue("--dborder-dot-size"));
-    const spacing = parseFloat(el.style.getPropertyPriority("--dborder-spacing"))
+    const compstyle = getComputedStyle(el);
+    const dot_size = parseFloat(compstyle.getPropertyValue("--dborder-dot-size"));
+    const spacing = parseFloat(compstyle.getPropertyValue("--dborder-spacing"));
 
     const dotborder = new StandardDotBorder(
         el,
         Number.isNaN(dot_size) ? undefined : dot_size,
-        Number.isNaN(spacing) ? undefined : spacing
+        Number.isNaN(spacing) ? undefined : spacing,
+        "out"
     );
     dotborder.render();
 

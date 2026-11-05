@@ -47,7 +47,7 @@ export class StandardDotBorder {
             this.paths.push(path);
         });
     }
-    constructor(target, dot_size = 4, spacing = 4, border_pos = "in", base_colors = STANDARD_BASE_COLORS) {
+    constructor(target, dot_size = 4, spacing = 4, border_pos = "in", base_colors = STANDARD_BASE_COLORS, svg_class = "dot-border-svg") {
         this.target = target;
         this.dot_size = dot_size;
         this.spacing = spacing;
@@ -55,6 +55,11 @@ export class StandardDotBorder {
         this.paths = [];
         this.svg = document.createElementNS(SVG_NS, "svg");
         this.target.appendChild(this.svg);
+        const compstyle = getComputedStyle(target);
+        if (compstyle.position === 'static') {
+            target.style.setProperty("position", "relative");
+        }
+        this.svg.classList.add(svg_class);
         this._base_colors = base_colors;
         this.init_paths();
         this.observer = new ResizeObserver(() => {
@@ -83,7 +88,9 @@ export class StandardDotBorder {
         const cornersmap = ["top-left", "top-right", "bottom-left", "bottom-right"];
         const compstyle = getComputedStyle(this.target);
         const [tl, tr, bl, br] = cornersmap.map((cname) => {
-            let ret = parseFloat(compstyle.getPropertyValue("border-" + cname + "-radius"));
+            const retraw = compstyle.getPropertyValue("border-" + cname + "-radius");
+            let ret = parseFloat(retraw);
+            ret = retraw.endsWith("%") ? ret / 100 * Math.min(bordersize.width, bordersize.height) : ret;
             return Math.max(0, ret - shrink_factor);
         });
         const [rw_top, rw_bottom] = [width - tl - tr, width - bl - br];

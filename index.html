@@ -3,92 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DNA Symphony</title>
     <link href="https://fonts.googleapis.com/css2?family=Doto:wght@100..900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <title>DNA Sequence Symphony</title>
 </head>
 <body>
-    <div class="screencenter column-input">
-        <h1>Create a symphony by writing a DNA sequence!</h1>
-        
-        <div class="errbox" id="mainscreen-errbox">
-            <img src="assets/warning.svg">
-            <p id="errmsg">ERROR MESSAGE HERE!</p>
-        </div>
+    <main>
+        <h1 class="mainscreen-title">Create a symphony by writing a DNA sequence!</h1>
+        <h1 class="acgt-title a-color">A</h1>
+        <h1 class="acgt-title c-color">C</h1>
+        <h1 class="acgt-title g-color">G</h1>
+        <h1 class="acgt-title t-color">T</h1>
 
-        <div class="entries-column">
-            <div class="entry-row">
-                <div class="dna-entry-wrapper dna-dot-border">
-                    <textarea wrap="off" rows="1" class="dna-entry" placeholder="Enter DNA sequence here (you can only type A, C, G, and T)..."></textarea>
-                </div>
-                <button class="entry-settings dna-dot-border"></button>
-            </div>
-        </div>
+        <div class="mainscreen flex-column">
+            <div class="flex-row">
+                <div class="flex-row flex-wrap">
+                    <button class="cellular-outline playback-button playbttn"></button>
+                    <div class="slider-wrapper playbar-wrapper">
+                    <input value="0" min="0" max="1000" class="playbar" type="range">
+                    </div>
 
-        <div class="row-input">
-            <button id="playback-button" class="playform dna-dot-border"></button> <!--playform and pauseform for determining the form of the button-->
-            <input value="0" min="0" max="1000" id="playhead" type="range">
-        </div>
-    </div>
+                    <div class="flex-row master-settings cellular-outline">
+                        <div class="flex-row inline-setting">
+                            <h3 class="row-title">BPM</h3>
+                            <input class="cellular-outline standard-number-field" type="number" min="1" max="999" value="240">
+                        </div>
 
-    <div id="mainscreen-blur" class="screen-blur">
-        <div id="settings-screen" class="dna-dot-border">
-            <div class="settings-screen-title" class="dna-dot-border">
-                <h1>Settings</h1>
-                <button id="settings-exit">
-                    <img src="assets/close.svg">
-                </button>
-            </div>
 
-            <div class="errbox" id="settings-errbox">
-                <img src="assets/warning.svg">
-                <p id="settings-errmsg">ERROR MESSAGE HERE!</p>
-            </div>
-
-            <form id="settings-form" class="settings-column">
-                <div class="settings-row">
-                    <label for="sttg-gain-field" class="settings-row-title">
-                        <p>Gain/Volume</p>
-                        <sub>(Please do not exceed 1.0, or it'll be too loud)</sub>
-                    </label>
-                    <input name="default_gain" type="number" value="0.2" max="10" min="0.1" step="0.1" class="decimal-number-settings settings-input-field">
-                </div>
-
-                <div class="settings-row">
-                    <label for="sttg-bpm-field" class="settings-row-title">BPM</label>
-                    <input type="number" value="240" min="1" name="bpm" class="integer-number-settings settings-input-field">
-                </div>
-
-                <div class="settings-row">
-                    <label for="sttg-wet-field" class="settings-row-title">
-                        <p>Reverb wet gain</p>
-                        <sub>(Can't exceed 1.0)</sub>
-                    </label>
-                    <input type="number" value="0.3" min="0.0" max="1" step="0.1" name="wet" class="decimal-number-settings settings-input-field">
-                </div>
-
-                <button type="submit" id="settings-apply" class="dna-dot-border">Apply</button>
-            </form>
-        </div>
-
-        <div id="settings-blur" class="screen-blur">
-            <div id="settings-unsaved-screen" class="dna-dot-border">
-                <div id="settings-unsaved-title" class="settings-screen-title dna-dot-border">
-                    Attention!
-                </div>
-
-                <div class="settings-column">
-                    <p>You have unapplied settings, continue to exit settings?</p>
-                    <div class="settings-row">
-                        <button class="settings-unsaved-button" id="settings-unsaved-cancel">Cancel</button>
-                        <button class="settings-unsaved-button" id="settings-unsaved-exit">Exit</button>
+                        <div class="flex-row inline-setting">
+                            <h3 class="row-title">GAIN</h3>
+                            <input class="cellular-outline standard-number-field" min="0.001" value="0.2" max="1.0" type="number">
+                            <div class="slider-wrapper">
+                                <input value="200" min="0" max="1000" type="range">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <div id="dnabar"></div>
-    <script type="module" src="dist/main.js"></script>
+            <br>
+
+            <div class="flex-row">
+                <div data-seqid="0" class="flex-column sequence-block">
+                    <div data-seqid="0" class="flex-row dnabars-parent"></div>
+
+                    <div class="flex-row cellular-outline dnaentry-parent">
+                        <textarea wrap="off" rows="1" data-seqid="0" class="dnaentry-input" placeholder="Enter DNA sequence here (ACGT)..."></textarea>
+                        <button data-seqid="0" class="dnaentry-settings"></button>
+                    </div>
+                </div>
+            </div>
+
+            <button class="add-sequence-button cellular-outline">+ Add Sequence</button>
+        </div>
+    </main>
+
+    <div class="flex-row error notification">
+            <h1 class="row-title">lol!?</h1>
+            <p>Error message should be displayed here. If not, something terrible is happening.</p>
+            <button class="close-button"></button>
+        </div>
+
+    <footer>
+        <p>Made for <a href="https://terra.hackclub.com">Terra</a>, by <a href="https://github.com/nastar-forever">@nastavial</a>
+        </p>
+    </footer>
 </body>
 </html>

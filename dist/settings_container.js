@@ -1,4 +1,11 @@
 export class PrimaryUserSettings {
+    bound_to;
+    bpm;
+    default_gain;
+    ir;
+    chord_size;
+    periodic_waves;
+    wet;
     constructor(bound_to, bpm, default_gain, ir, chord_size, periodic_waves, wet) {
         this.bound_to = bound_to;
         this.bpm = bpm;
@@ -17,6 +24,8 @@ export class PrimaryUserSettings {
     }
 }
 export class SecondaryUserSettings {
+    bound_to;
+    goofy_mode;
     constructor(bound_to, goofy_mode = false) {
         this.bound_to = bound_to;
         this.goofy_mode = goofy_mode;
@@ -26,6 +35,14 @@ export class SecondaryUserSettings {
     }
 }
 export class UserSettings {
+    bound_to;
+    bpm;
+    default_gain;
+    ir;
+    chord_size;
+    periodic_waves;
+    wet;
+    goofy_mode;
     constructor(bound_to, bpm, default_gain, ir = null, chord_size = 1, periodic_waves = null, wet = 0.3, goofy_mode = false) {
         this.bound_to = bound_to;
         this.bpm = bpm;

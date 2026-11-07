@@ -29,6 +29,14 @@ export function retrieve_all(selector, buffer) {
 }
 const SVG_NS = "http://www.w3.org/2000/svg";
 export class StandardDotBorder {
+    target;
+    dot_size;
+    spacing;
+    border_pos;
+    svg;
+    paths = [];
+    observer;
+    _base_colors;
     init_paths() {
         this.paths.forEach((path) => {
             this.svg.removeChild(path);
@@ -52,7 +60,6 @@ export class StandardDotBorder {
         this.dot_size = dot_size;
         this.spacing = spacing;
         this.border_pos = border_pos;
-        this.paths = [];
         this.svg = document.createElementNS(SVG_NS, "svg");
         this.target.appendChild(this.svg);
         const compstyle = getComputedStyle(target);
@@ -111,22 +118,105 @@ export class StandardDotBorder {
     }
 }
 export class EntrySettingsCorrespond {
-    constructor(master, standard_settings) {
+    master;
+    standard_settings;
+    _ent;
+    _bttn;
+    _channels;
+    _sequences;
+    _settings;
+    _dnabars;
+    dnabars;
+    get_raw(array) {
+        return array.map((esc) => esc.el);
+    }
+    get ent() { return this.get_raw(this._ent); }
+    get bttn() { return this.get_raw(this._bttn); }
+    get channels() { return this.get_raw(this._channels); }
+    get sequences() { return this.get_raw(this._sequences); }
+    get settings() { return this.get_raw(this._settings); }
+    get total_duration() {
+        return Math.max(...this.sequences.map((seq) => seq.total_duration));
+    }
+    set_settings(idx_id, settings, ref_by = "idx") {
+        if (ref_by === "idx") {
+            if (this._settings.length < idx_id) {
+                throw new Error(`index ${idx_id} is out of bounds`);
+            }
+            this._settings[idx_id] = {
+                "el": settings,
+                "id": this._settings[idx_id].id
+            };
+            return;
+        }
+        let found = false;
+        this._settings.forEach((sttg, i) => {
+            if (sttg.id === idx_id) {
+                this._settings[i] = {
+                    "el": settings,
+                    "id": sttg.id
+                };
+                found = true;
+            }
+        });
+        if (!found) {
+            throw new Error(`id ${idx_id} not found`);
+        }
+    }
+    escarray_get(selector) {
+        return this[`_${selector}`];
+    }
+    validate_escs(...escs) {
+        if (escs.length === 0) {
+            escs = ["ent", "bttn", "channels", "sequences", "settings", "dnabars"];
+        }
+        escs.forEach((escprop) => {
+            const am_escprop = this[`_${escprop}`];
+            if (am_escprop.length === 0) {
+                throw new Error(`${escprop} isn't defined or constructed yet. Did you call .construct() before?`);
+            }
+            escs.forEach((esccomp) => {
+                const am_esccomp = this[`_${esccomp}`];
+                if (am_escprop.length !== am_esccomp.length) {
+                    throw new Error(`${escprop} length (${am_escprop.length}) mismattched from ${esccomp} length (${am_esccomp.length})`);
+                    '';
+                }
+            });
+            this[`_${escprop}`].sort((a, b) => a.id - b.id);
+        });
+        this[`_${escs[0]}`].forEach((am_escprop, idx) => {
+            const id = am_escprop.id;
+            escs.forEach((esccomp) => {
+                const am_esccomp = this[`_${esccomp}`];
+                if (id !== am_esccomp[idx].id) {
+                    throw new Error(`ids at index ${idx} aren't synced.`);
+                }
+            });
+        });
+    }
+    els_to_escarray(els) {
+        return els.map((el) => {
+            const seqid = el.dataset.seqid;
+            if (seqid === "undefined") {
+                throw new Error(`${el} doesn't have data-seqid property.`);
+            }
+            return {
+                "id": Number(seqid),
+                "el": el
+            };
+        });
+    }
+    constructor(master, standard_settings, entries, settings_buttons, dnabars) {
         this.master = master;
         this.standard_settings = standard_settings;
-        this.ent = [];
-        this.bttn = [];
-        this.channels = [];
-        this.sequences = [];
-        this.settings = [];
-    }
-    validate(extra_cond = true) {
-        if (this.ent.length != this.bttn.length) {
-            throw new Error(`ent length (${this.ent.length}) mismatched from bttn length (${this.bttn.length})`);
-        }
-        if (!extra_cond) {
-            throw new Error("extra_cond not met");
-        }
+        this._ent = this.els_to_escarray(entries);
+        this._bttn = this.els_to_escarray(settings_buttons);
+        this._dnabars = this.els_to_escarray(dnabars);
+        this._channels = [];
+        this._sequences = [];
+        this._settings = [];
+        this.dnabars = [];
+        this.validate_escs("ent", "bttn", "dnabars");
     }
     master_apply() {
         this.channels.forEach((ch, idx) => {
@@ -138,47 +228,57 @@ export class EntrySettingsCorrespond {
             ch.apply_settings(settings);
         });
     }
-    construct_channels() {
-        this.validate();
-        this.channels.forEach((ch) => ch.terminate());
-        this.channels = Array.from({ length: this.ent.length }, (_, i) => {
-            var _a;
-            (_a = this.settings)[i] ?? (_a[i] = new UserSettings(null, this.standard_settings.bpm, this.standard_settings.default_gain, this.standard_settings.ir, this.standard_settings.chord_size, this.standard_settings.periodic_waves, this.standard_settings.wet, this.standard_settings.goofy_mode));
-            const ch = new Channel(this.master, null, null);
-            ch.apply_settings(this.settings[i]);
-            return ch;
+    dnabars_update_baseblocks() {
+        this.dnabars.forEach((dnabar) => {
+            dnabar.update_baseblocks();
         });
     }
-    construct_sequences() {
-        // this.validate(this.channels.length === this.ent.length);
-        this.sequences.forEach((seq) => {
-            seq.clear();
-        });
-        this.sequences = Array.from({ length: this.ent.length }, (_, index) => {
-            return new Sequence(this.master, this.channels[index]);
+    construct(dnabars_base_width, dnabars_space_width, dnabars_baseblock_classes) {
+        this.validate_escs("ent", "bttn");
+        this.dnabars.forEach((dnabar) => { dnabar.terminate(true); });
+        this.channels.forEach((ch) => { ch.terminate(); });
+        this.sequences.forEach((seq) => { seq.clear(); });
+        this._sequences.length = 0;
+        this._channels.length = 0;
+        this._dnabars.length = 0;
+        this.dnabars.length = 0;
+        this.ent.map((_, i) => {
+            const id = this._ent[i].id;
+            this._settings[i] ??= {
+                "el": new UserSettings(null, this.standard_settings.bpm, this.standard_settings.default_gain, this.standard_settings.ir, this.standard_settings.chord_size, this.standard_settings.periodic_waves, this.standard_settings.wet, this.standard_settings.goofy_mode),
+                "id": id
+            };
+            const ch = new Channel(this.master, null, null);
+            ch.apply_settings(this.settings[i]);
+            const seq = {
+                "el": new Sequence(this.master, ch),
+                "id": id
+            };
+            const dnabar = new DNABar(this._dnabars[i].el, dnabars_base_width, dnabars_space_width, dnabars_baseblock_classes);
+            this._dnabars.push({ "id": id, "el": dnabar.bar });
+            this._channels.push({ "id": id, "el": ch });
+            this._sequences.push(seq);
+            this.dnabars.push(dnabar);
         });
     }
     button_addEventListener(event, listener) {
-        this.validate();
-        this.bttn.forEach((bttn, i) => {
-            bttn.addEventListener(event, () => {
-                listener(this.ent[i], bttn, this.channels[i], this.settings[i], i);
+        this.validate_escs();
+        this._bttn.forEach((bttn, i) => {
+            bttn.el.addEventListener(event, () => {
+                listener(this.ent[i], bttn.el, this.channels[i], this.settings[i], this.dnabars[i], i, bttn.id);
             });
         });
     }
     entry_addEventListener(event, listener) {
-        this.validate();
-        this.ent.forEach((ent, i) => {
-            ent.addEventListener(event, () => {
-                listener(ent, this.bttn[i], this.channels[i], this.settings[i], i);
+        this.validate_escs();
+        this._ent.forEach((ent, i) => {
+            ent.el.addEventListener(event, () => {
+                listener(ent.el, this.bttn[i], this.channels[i], this.settings[i], this.dnabars[i], i, ent.id);
             });
         });
     }
     silence() {
         this.channels.forEach((ch) => { ch.silence(); });
-    }
-    get total_duration() {
-        return Math.max(...this.sequences.map((seq) => seq.total_duration));
     }
     schedule_play(starttime, offset = 0) {
         this.sequences.forEach((seq) => { seq.schedule_play(starttime, offset); });
@@ -193,17 +293,22 @@ export class EntrySettingsCorrespond {
     }
 }
 export class Playbar {
+    playbar;
+    master;
+    correspond;
+    lookahead;
+    tick_interval;
+    origin = 0;
+    next_pass = 0;
+    start_frac = 0;
+    dragging = false;
+    active = false;
     constructor(playbar, master, correspond, lookahead = 1.0, tick_interval = 50) {
         this.playbar = playbar;
         this.master = master;
         this.correspond = correspond;
         this.lookahead = lookahead;
         this.tick_interval = tick_interval;
-        this.origin = 0;
-        this.next_pass = 0;
-        this.start_frac = 0;
-        this.dragging = false;
-        this.active = false;
     }
     start_at(frac) {
         const seqs = this.correspond.sequences;
@@ -250,6 +355,13 @@ export class Playbar {
     }
 }
 export class DNABar {
+    baseblock_classes;
+    bar;
+    bases;
+    bases_limit;
+    baseblocks;
+    _space_width;
+    _base_width;
     init_baseblocks() {
         while (this.baseblocks.length < this.bases_limit) {
             const baseblock = document.createElement("div");
@@ -340,5 +452,15 @@ export class DNABar {
             baseblock.style.setProperty("display", "flex");
         });
         this.bases = s_bases.slice(-this.bases_limit);
+    }
+    terminate(atomic = false) {
+        this.bases.length = 0;
+        this.baseblocks.forEach((baseblock) => {
+            // this.bar.removeChild(baseblock);
+            baseblock.remove();
+        });
+        if (atomic) {
+            this.bar.remove();
+        }
     }
 }

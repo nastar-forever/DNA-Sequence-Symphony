@@ -179,39 +179,145 @@ export interface ESCListener{
     btn: HTMLButtonElement,
     channel: Channel,
     settings: UserSettings,
-    index: number): void;
+    dnabar: DNABar,
+    idx: number,
+    id: number): void;
 }
 
 export interface ESCValSetFunction<T extends HTMLElement>{
     (element: T): string;
 }
 
+export interface ESCArrMember<T> {
+    id: number;
+    el: T;
+}
+
+export type ESCArrays = "ent"|"bttn"|"channels"|"sequences"|"settings"|"dnabars";
+
 export class EntrySettingsCorrespond {
-    public ent: HTMLInputElement[];
-    public bttn: HTMLButtonElement[];
-    public channels: Channel[];
-    public sequences: Sequence[];
-    public settings: UserSettings[];
+    private _ent: ESCArrMember<HTMLInputElement>[];
+    private _bttn: ESCArrMember<HTMLButtonElement>[];
+    private _channels: ESCArrMember<Channel>[];
+    private _sequences: ESCArrMember<Sequence>[];
+    private _settings: ESCArrMember<UserSettings>[];
+    private _dnabars: ESCArrMember<HTMLElement>[];
+    public dnabars: DNABar[];
+
+    private get_raw<T>(array: ESCArrMember<T>[]) {
+        return array.map((esc) => esc.el);
+    }
+
+    get ent() {return this.get_raw(this._ent)}
+    get bttn() {return this.get_raw(this._bttn)}
+    get channels() {return this.get_raw(this._channels)}
+    get sequences() {return this.get_raw(this._sequences)}
+    get settings() {return this.get_raw(this._settings)}
+    get total_duration(): number {
+        return Math.max(...this.sequences.map((seq) => seq.total_duration));
+    }
+    
+    set_settings(idx_id: number, settings: UserSettings, ref_by: "idx"|"id" = "idx") {
+        if (ref_by === "idx") {
+            if (this._settings.length < idx_id) {
+                throw new Error(`index ${idx_id} is out of bounds`);
+            }
+
+            this._settings[idx_id] = {
+                "el": settings,
+                "id": this._settings[idx_id].id
+            }
+
+            return;
+        }
+
+        let found = false;
+
+        this._settings.forEach((sttg, i) => {
+            if (sttg.id === idx_id) {
+                this._settings[i] = {
+                    "el": settings,
+                    "id": sttg.id
+                }
+
+                found = true;
+            }
+        })
+
+        if (!found) {
+            throw new Error(`id ${idx_id} not found`);
+        }
+    }
+
+    escarray_get(selector: ESCArrays) {
+        return this[`_${selector}`];
+    }
+
+    private validate_escs(...escs: ESCArrays[]) {
+        if (escs.length === 0) {
+            escs = ["ent", "bttn", "channels", "sequences", "settings", "dnabars"];
+        }
+
+        escs.forEach((escprop) => {
+            const am_escprop = this[`_${escprop}`];
+            
+            if (am_escprop.length === 0) {
+                throw new Error(`${escprop} isn't defined or constructed yet. Did you call .construct() before?`)
+            }
+
+            escs.forEach((esccomp) => {
+                const am_esccomp = this[`_${esccomp}`];
+
+                if (am_escprop.length !== am_esccomp.length) {
+                    throw new Error(`${escprop} length (${am_escprop.length}) mismattched from ${esccomp} length (${am_esccomp.length})`);''
+                }
+            })
+
+            this[`_${escprop}`].sort((a, b) => a.id - b.id);
+        })
+
+        this[`_${escs[0]}`].forEach((am_escprop, idx) => {
+            const id = am_escprop.id;
+
+            escs.forEach((esccomp) => {
+                const am_esccomp = this[`_${esccomp}`];
+
+                if (id !== am_esccomp[idx].id) {
+                    throw new Error(`ids at index ${idx} aren't synced.`)
+                }
+            })
+        })
+    }
+
+    private els_to_escarray<T extends HTMLElement>(els: T[]) {
+        return els.map((el) => {
+            const seqid = el.dataset.seqid;
+            if (seqid === "undefined") {
+                throw new Error(`${el} doesn't have data-seqid property.`);
+            }
+
+            return {
+                "id": Number(seqid),
+                "el": el
+            }
+        });
+    }
 
     constructor(
         public master: Master,
-        public standard_settings: UserSettings
+        public standard_settings: UserSettings,
+        entries: HTMLInputElement[],
+        settings_buttons: HTMLButtonElement[],
+        dnabars: HTMLElement[]
     ) {
-        this.ent = [];
-        this.bttn = [];
-        this.channels = [];
-        this.sequences = [];
-        this.settings = [];
-    }
-
-    private validate(extra_cond = true) {
-        if (this.ent.length != this.bttn.length) {
-            throw new Error(`ent length (${this.ent.length}) mismatched from bttn length (${this.bttn.length})`);
-        }
-
-        if (!extra_cond) {
-            throw new Error("extra_cond not met");
-        }
+        this._ent = this.els_to_escarray(entries);
+        this._bttn = this.els_to_escarray(settings_buttons);
+        this._dnabars = this.els_to_escarray(dnabars);
+        this._channels = [];
+        this._sequences = [];
+        this._settings = [];
+        this.dnabars = [];
+        this.validate_escs("ent", "bttn", "dnabars");
     }
 
     master_apply() {
@@ -226,36 +332,63 @@ export class EntrySettingsCorrespond {
         });
     }
 
-    construct_channels() {
-        this.validate();
-        this.channels.forEach((ch) => ch.terminate());
+    dnabars_update_baseblocks() {
+        this.dnabars.forEach((dnabar) => {
+            dnabar.update_baseblocks();
+        });
+    }
+    
+    construct(
+        dnabars_base_width?: number,
+        dnabars_space_width?: number,
+        dnabars_baseblock_classes?: BaseBlockClasses
+    ) {
+        this.validate_escs("ent", "bttn");
+        this.dnabars.forEach((dnabar) => {dnabar.terminate(true)});
+        this.channels.forEach((ch) => {ch.terminate()});
+        this.sequences.forEach((seq) => {seq.clear()});
 
-        this.channels = Array.from({length: this.ent.length}, (_, i) => {
-            this.settings[i] ??= new UserSettings(
-                null,
-                this.standard_settings.bpm,
-                this.standard_settings.default_gain,
-                this.standard_settings.ir,
-                this.standard_settings.chord_size,
-                this.standard_settings.periodic_waves,
-                this.standard_settings.wet,
-                this.standard_settings.goofy_mode
-            );
+        this._sequences.length = 0;
+        this._channels.length = 0;
+        this._dnabars.length = 0;
+        this.dnabars.length = 0;
+
+        this.ent.map((_, i) => {
+            const id = this._ent[i].id;
+
+            this._settings[i] ??= {
+                "el": new UserSettings(
+                    null,
+                    this.standard_settings.bpm,
+                    this.standard_settings.default_gain,
+                    this.standard_settings.ir,
+                    this.standard_settings.chord_size,
+                    this.standard_settings.periodic_waves,
+                    this.standard_settings.wet,
+                    this.standard_settings.goofy_mode
+                ),
+                "id": id
+            }
 
             const ch = new Channel(this.master, null, null);
             ch.apply_settings(this.settings[i]);
-            return ch;
-        });
-    }
+            
+            const seq = {
+                "el": new Sequence(this.master, ch),
+                "id": id
+            };
 
-    construct_sequences() {
-        // this.validate(this.channels.length === this.ent.length);
-        this.sequences.forEach((seq) => {
-            seq.clear();
-        })
-
-        this.sequences = Array.from({length:this.ent.length}, (_, index) => {
-            return new Sequence(this.master, this.channels[index]);
+            const dnabar = new DNABar(
+                this._dnabars[i].el,
+                dnabars_base_width,
+                dnabars_space_width,
+                dnabars_baseblock_classes
+            )
+            
+            this._dnabars.push({"id": id, "el": dnabar.bar})
+            this._channels.push({"id": id, "el": ch});
+            this._sequences.push(seq);
+            this.dnabars.push(dnabar);
         })
     }
 
@@ -263,11 +396,11 @@ export class EntrySettingsCorrespond {
         event: keyof HTMLElementEventMap,
         listener: ESCListener
     ) {
-        this.validate();
+        this.validate_escs();
 
-        this.bttn.forEach((bttn, i) => {
-            bttn.addEventListener(event, () => {
-                listener(this.ent[i], bttn, this.channels[i], this.settings[i], i);
+        this._bttn.forEach((bttn, i) => {
+            bttn.el.addEventListener(event, () => {
+                listener(this.ent[i], bttn.el, this.channels[i], this.settings[i], this.dnabars[i], i, bttn.id);
             })
         })
     }
@@ -276,21 +409,17 @@ export class EntrySettingsCorrespond {
         event: keyof HTMLElementEventMap,
         listener: ESCListener
     ) {
-        this.validate();
+        this.validate_escs();
 
-        this.ent.forEach((ent, i) => {
-            ent.addEventListener(event, () => {
-                listener(ent, this.bttn[i], this.channels[i], this.settings[i], i)
+        this._ent.forEach((ent, i) => {
+            ent.el.addEventListener(event, () => {
+                listener(ent.el, this.bttn[i], this.channels[i], this.settings[i], this.dnabars[i], i, ent.id);
             })
         })
     }
 
     silence() {
         this.channels.forEach((ch) => {ch.silence()});
-    }
-
-    get total_duration(): number {
-        return Math.max(...this.sequences.map((seq) => seq.total_duration));
     }
 
     schedule_play(starttime: number, offset = 0) {
@@ -506,5 +635,17 @@ export class DNABar {
         });
 
         this.bases = s_bases.slice(-this.bases_limit);
+    }
+
+    terminate(atomic = false) {
+        this.bases.length = 0;
+        this.baseblocks.forEach((baseblock) => {
+            // this.bar.removeChild(baseblock);
+            baseblock.remove();
+        });
+
+        if (atomic) {
+            this.bar.remove();
+        }
     }
 }

@@ -128,6 +128,16 @@ export function damp_delta(delta, damper) {
 }
 ///////////////////// HELPERS END
 export class Master {
+    ctx;
+    default_gain;
+    max_delta_change;
+    delta_map;
+    damp_map;
+    time_map;
+    pick_map;
+    time_pattern;
+    beattime;
+    gain;
     constructor(ctx = new AudioContext(), gain, bpm = 120, default_gain = 1, max_delta_change = 2, delta_map = STANDARD_DELTA_MAP, damp_map = STANDARD_DAMP_MAP, time_map = STANDARD_TIME_MAP, pick_map = STANDARD_PICK_MAP, time_pattern = STANDARD_TIME_PATTERN) {
         this.ctx = ctx;
         this.default_gain = default_gain;
@@ -150,6 +160,11 @@ export class Master {
     }
 }
 export class TransToken {
+    ramptype;
+    fromvalue;
+    tovalue;
+    duration;
+    param;
     constructor(ramptype, fromvalue, tovalue, duration, param) {
         this.ramptype = ramptype;
         this.fromvalue = fromvalue;
@@ -172,6 +187,12 @@ export class TransToken {
     }
 }
 export class BulkTransToken {
+    params_length;
+    params;
+    ramptypes;
+    durations;
+    fromvalues;
+    tovalues;
     to_array(params_length, thing) {
         if (Array.isArray(thing)) {
             if (thing.length != params_length) {
@@ -205,6 +226,17 @@ export class BulkTransToken {
     }
 }
 export class Channel {
+    master;
+    ir;
+    periodic_waves;
+    chord_size;
+    trans_duration;
+    goofy_mode;
+    oscs;
+    gain;
+    _wet;
+    dry;
+    _reverb_enabled;
     connect_oscs(to) {
         this.oscs.forEach((osc) => { osc.connect(to); });
     }
@@ -277,8 +309,8 @@ export class Channel {
         return new UserSettings(this, 60 / this.master.beattime, this.master.default_gain, this.ir, this.chord_size, this.periodic_waves, this.wet, this.goofy_mode);
     }
     apply_settings(set) {
-        this.master.beattime = 60 / set.bpm;
-        this.master.default_gain = set.default_gain;
+        // this.master.beattime = 60 / set.bpm;
+        // this.master.default_gain = set.default_gain;
         this.ir = set.ir;
         this.chord_size = set.chord_size;
         this.periodic_waves = set.periodic_waves;
@@ -361,6 +393,8 @@ export class Channel {
     }
 }
 export class PlayableBases {
+    master;
+    initial_note;
     constructor(master, initial_note) {
         this.master = master;
         this.initial_note = initial_note;
@@ -375,6 +409,12 @@ export class PlayableBases {
     get last_note() { return 0; }
 }
 export class CodonNote extends PlayableBases {
+    codon;
+    duration;
+    delta;
+    first;
+    middle;
+    last;
     constructor(master, codon, initial_note = START_NOTE) {
         super(master, initial_note);
         this.codon = codon;
@@ -412,6 +452,7 @@ export function is_codon_cluster(codons) {
     return codons.length === 4 && codons.every((codon) => codon instanceof CodonNote);
 }
 export class CodonCluster extends PlayableBases {
+    codons;
     constructor(master, codons, initial_note = START_NOTE) {
         super(master, initial_note);
         this.codons = codons;
@@ -468,6 +509,9 @@ export class CodonCluster extends PlayableBases {
     }
 }
 export class Sequence {
+    master;
+    channel;
+    codons;
     constructor(master, channel) {
         this.master = master;
         this.channel = channel;

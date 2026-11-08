@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Symphony</title>
+    <link href="https://fonts.googleapis.com/css2?family=Doto:wght@100..900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="screencenter column-input">
+        <h1>Create a symphony by writing a DNA sequence!</h1>
+        
+        <div class="errbox" id="mainscreen-errbox">
+            <img src="assets/warning.svg">
+            <p id="errmsg">ERROR MESSAGE HERE!</p>
+        </div>
+
+        <div class="entries-column">
+            <div class="entry-row">
+                <div class="dna-entry-wrapper dna-dot-border">
+                    <textarea wrap="off" rows="1" class="dna-entry" placeholder="Enter DNA sequence here (you can only type A, C, G, and T)..."></textarea>
+                </div>
+                <button class="entry-settings dna-dot-border"></button>
+            </div>
+        </div>
+
+        <div class="row-input">
+            <button id="playback-button" class="playform dna-dot-border"></button> <!--playform and pauseform for determining the form of the button-->
+            <input value="0" min="0" max="1000" id="playhead" type="range">
+        </div>
+    </div>
+
+    <div id="mainscreen-blur" class="screen-blur">
+        <div id="settings-screen" class="dna-dot-border">
+            <div class="settings-screen-title" class="dna-dot-border">
+                <h1>Settings</h1>
+                <button id="settings-exit">
+                    <img src="assets/close.svg">
+                </button>
+            </div>
+
+            <div class="errbox" id="settings-errbox">
+                <img src="assets/warning.svg">
+                <p id="settings-errmsg">ERROR MESSAGE HERE!</p>
+            </div>
+
+            <form id="settings-form" class="settings-column">
+                <div class="settings-row">
+                    <label for="sttg-gain-field" class="settings-row-title">
+                        <p>Gain/Volume</p>
+                        <sub>(Please do not exceed 1.0, or it'll be too loud)</sub>
+                    </label>
+                    <input name="default_gain" type="number" value="0.2" max="10" min="0.1" step="0.1" class="decimal-number-settings settings-input-field">
+                </div>
+
+                <div class="settings-row">
+                    <label for="sttg-bpm-field" class="settings-row-title">BPM</label>
+                    <input type="number" value="240" min="1" name="bpm" class="integer-number-settings settings-input-field">
+                </div>
+
+                <div class="settings-row">
+                    <label for="sttg-wet-field" class="settings-row-title">
+                        <p>Reverb wet gain</p>
+                        <sub>(Can't exceed 1.0)</sub>
+                    </label>
+                    <input type="number" value="0.3" min="0.0" max="1" step="0.1" name="wet" class="decimal-number-settings settings-input-field">
+                </div>
+
+                <button type="submit" id="settings-apply" class="dna-dot-border">Apply</button>
+            </form>
+        </div>
+
+        <div id="settings-blur" class="screen-blur">
+            <div id="settings-unsaved-screen" class="dna-dot-border">
+                <div id="settings-unsaved-title" class="settings-screen-title dna-dot-border">
+                    Attention!
+                </div>
+
+                <div class="settings-column">
+                    <p>You have unapplied settings, continue to exit settings?</p>
+                    <div class="settings-row">
+                        <button class="settings-unsaved-button" id="settings-unsaved-cancel">Cancel</button>
+                        <button class="settings-unsaved-button" id="settings-unsaved-exit">Exit</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="dnabar"></div>
+    <script type="module" src="dist/main.js"></script>
+</body>
+</html>

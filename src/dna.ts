@@ -1,3 +1,5 @@
+
+export const STANDARD_BASE_COLORS = ["#2B63FF", "#FF2B36", "#179C3D", "#FF912B"];
 export const BASES_SET = new Set(["A", "C", "G", "T"]);
 export type Base = "A" | "C" | "G" | "T";
 export type Codon = `${Base}${Base}${Base}`;

@@ -1,3 +1,4 @@
+export const STANDARD_BASE_COLORS = ["#2B63FF", "#FF2B36", "#179C3D", "#FF912B"];
 export const BASES_SET = new Set(["A", "C", "G", "T"]);
 export function to_singular_bases(str) {
     if (str.length === 0) {

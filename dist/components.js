@@ -281,7 +281,6 @@ export class EntrySettingsCorrespond {
         this.sequences.forEach((seq) => { seq.clear(); });
         this._sequences.length = 0;
         this._channels.length = 0;
-        this.dnabars.length = 0;
         this.ent.map((_, i) => {
             const id = this._ent[i].id;
             this._settings[i] ??= {
@@ -294,10 +293,9 @@ export class EntrySettingsCorrespond {
                 "el": new Sequence(this.master, ch),
                 "id": id
             };
-            const dnabar = new DNABar(this._dnabars[i].el, this.dnabars_base_width, this.dnabars_space_width, this.dnabars_baseblock_classes);
+            this.dnabars[i] ??= new DNABar(this._dnabars[i].el, this.dnabars_base_width, this.dnabars_space_width, this.dnabars_baseblock_classes);
             this._channels.push({ "id": id, "el": ch });
             this._sequences.push(seq);
-            this.dnabars.push(dnabar);
         });
     }
     button_addEventListener(event, listener) {

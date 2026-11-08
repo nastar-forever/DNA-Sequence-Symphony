@@ -36,6 +36,7 @@ const standard_settings = new UserSettings(
     null,
     3
 )
+master.apply_settings(standard_settings);
 
 const entset = new EntrySettingsCorrespond(
     master, standard_settings,
@@ -114,6 +115,16 @@ els_sliders.forEach((slider, idx) => {
     })
 })
 
+function stop_playing(restart=false) {
+    playbar.stop();
+    set_playbttn_form(false);
+
+    if (restart) {
+        playbar.start_frac = 0;
+        playbar.set(0);
+    }
+}
+
 
 // Listeners link
 // playbar.update();
@@ -148,10 +159,7 @@ entset.entry_addEventListener("input", (ent, _, __, ___, dnabar) => {
     }
 
     if (playbar.active) {
-        playbar.stop();
-        playbar.start_frac = 0;
-        playbar.set(0);
-        set_playbttn_form(false);
+       stop_playing(true);
     }
 
     if (ensure_acgt(cleaned2)) {
@@ -176,8 +184,7 @@ window.addEventListener("resize", () => {
 setInterval(() => {playbar.tick()}, playbar.tick_interval);
 el_playbttn.onclick = async () => {
     if (playbar.active) {
-        playbar.stop();
-        set_playbttn_form(false);
+        stop_playing();
         return;
     }
     
@@ -252,6 +259,9 @@ const clamp = (x: number, lo: number, hi: number) => {
     return Math.min(Math.max(x, lo), hi)
 };
 
+el_mastersttg_gain_field.addEventListener("input", () => {
+    if (playbar.active) stop_playing(true);
+})
 
 el_mastersttg_gain_field.addEventListener("change", () => {
     const min = Number(el_mastersttg_gain_field.min);
@@ -269,11 +279,16 @@ el_mastersttg_gain_field.addEventListener("change", () => {
 
 
 el_mastersttg_gain_slider.addEventListener("input", () => {
-  const mapped = Number(syncRange(el_mastersttg_gain_slider, el_mastersttg_gain_field).toFixed(3));
+    if (playbar.active) stop_playing(true);
+    const mapped = Number(syncRange(el_mastersttg_gain_slider, el_mastersttg_gain_field).toFixed(3));
 
-  el_mastersttg_gain_field.value = String(mapped);
-  master.default_gain = mapped;
+    el_mastersttg_gain_field.value = String(mapped);
+    master.default_gain = mapped;
 });
+
+el_mastersttg_bpm.addEventListener("input", () => {
+    if (playbar.active) stop_playing(true);
+})
 
 el_mastersttg_bpm.addEventListener("change", () => {
     master.beattime = 60 / Number(el_mastersttg_bpm.value);

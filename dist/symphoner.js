@@ -309,8 +309,8 @@ export class Channel {
         return new UserSettings(this, 60 / this.master.beattime, this.master.default_gain, this.ir, this.chord_size, this.periodic_waves, this.wet, this.goofy_mode);
     }
     apply_settings(set) {
-        this.master.beattime = 60 / set.bpm;
-        this.master.default_gain = set.default_gain;
+        // this.master.beattime = 60 / set.bpm;
+        // this.master.default_gain = set.default_gain;
         this.ir = set.ir;
         this.chord_size = set.chord_size;
         this.periodic_waves = set.periodic_waves;

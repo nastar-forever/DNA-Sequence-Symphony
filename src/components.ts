@@ -392,7 +392,6 @@ export class EntrySettingsCorrespond {
 
         this._sequences.length = 0;
         this._channels.length = 0;
-        this.dnabars.length = 0;
 
         this.ent.map((_, i) => {
             const id = this._ent[i].id;
@@ -419,7 +418,7 @@ export class EntrySettingsCorrespond {
                 "id": id
             };
 
-            const dnabar = new DNABar(
+            this.dnabars[i] ??= new DNABar(
                 this._dnabars[i].el,
                 this.dnabars_base_width,
                 this.dnabars_space_width,
@@ -428,7 +427,6 @@ export class EntrySettingsCorrespond {
             
             this._channels.push({"id": id, "el": ch});
             this._sequences.push(seq);
-            this.dnabars.push(dnabar);
         })
     }
 

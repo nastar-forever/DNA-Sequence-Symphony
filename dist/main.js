@@ -25,6 +25,7 @@ retrieve_all(".slider-wrapper input", els_sliders);
 retrieve_all(".standard-number-field", els_standard_number_field);
 const master = new Master();
 const standard_settings = new UserSettings(null, 240, 0.2, null, 3);
+master.apply_settings(standard_settings);
 const entset = new EntrySettingsCorrespond(master, standard_settings, els_dnaentry_input, els_dnaentry_settings, els_dnabars_parent, 1.32, 66);
 const playbar = new Playbar(el_playbar, master, entset);
 const wtbaseurl = "https://raw.githubusercontent.com/GoogleChromeLabs/web-audio-samples/refs/heads/main/src/demos/wavetable-synth/wave-tables/";
@@ -81,6 +82,14 @@ els_sliders.forEach((slider, idx) => {
         update_slider(slider, wrapper);
     });
 });
+function stop_playing(restart = false) {
+    playbar.stop();
+    set_playbttn_form(false);
+    if (restart) {
+        playbar.start_frac = 0;
+        playbar.set(0);
+    }
+}
 // Listeners link
 // playbar.update();
 // el_playbar.addEventListener("input", () => {playbar.update()});
@@ -107,10 +116,7 @@ entset.entry_addEventListener("input", (ent, _, __, ___, dnabar) => {
         ent.value = cleaned;
     }
     if (playbar.active) {
-        playbar.stop();
-        playbar.start_frac = 0;
-        playbar.set(0);
-        set_playbttn_form(false);
+        stop_playing(true);
     }
     if (ensure_acgt(cleaned2)) {
         dnabar.implant_bases(cleaned2);
@@ -130,8 +136,7 @@ window.addEventListener("resize", () => {
 setInterval(() => { playbar.tick(); }, playbar.tick_interval);
 el_playbttn.onclick = async () => {
     if (playbar.active) {
-        playbar.stop();
-        set_playbttn_form(false);
+        stop_playing();
         return;
     }
     await master.ctx.resume();
@@ -185,6 +190,10 @@ const syncRange = (from, to) => map(Number(from.value), Number(from.min), Number
 const clamp = (x, lo, hi) => {
     return Math.min(Math.max(x, lo), hi);
 };
+el_mastersttg_gain_field.addEventListener("input", () => {
+    if (playbar.active)
+        stop_playing(true);
+});
 el_mastersttg_gain_field.addEventListener("change", () => {
     const min = Number(el_mastersttg_gain_field.min);
     const max = Number(el_mastersttg_gain_field.max);
@@ -197,9 +206,15 @@ el_mastersttg_gain_field.addEventListener("change", () => {
     }
 });
 el_mastersttg_gain_slider.addEventListener("input", () => {
+    if (playbar.active)
+        stop_playing(true);
     const mapped = Number(syncRange(el_mastersttg_gain_slider, el_mastersttg_gain_field).toFixed(3));
     el_mastersttg_gain_field.value = String(mapped);
     master.default_gain = mapped;
+});
+el_mastersttg_bpm.addEventListener("input", () => {
+    if (playbar.active)
+        stop_playing(true);
 });
 el_mastersttg_bpm.addEventListener("change", () => {
     master.beattime = 60 / Number(el_mastersttg_bpm.value);

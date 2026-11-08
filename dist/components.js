@@ -78,7 +78,7 @@ export class StandardDotBorder {
         return this._base_colors;
     }
     set base_colors(colors) {
-        this.base_colors = colors;
+        this._base_colors = colors;
         this.init_paths();
     }
     arc_command(radii, endx, endy) {
@@ -117,9 +117,20 @@ export class StandardDotBorder {
         });
     }
 }
+export const ESCArrMemberTypeListTypeMap = {
+    ent: HTMLInputElement,
+    bttn: HTMLButtonElement,
+    channels: Channel,
+    sequences: Sequence,
+    settings: UserSettings,
+    dnabars: HTMLElement,
+};
 export class EntrySettingsCorrespond {
     master;
     standard_settings;
+    dnabars_base_width;
+    dnabars_space_width;
+    dnabars_baseblock_classes;
     _ent;
     _bttn;
     _channels;
@@ -166,6 +177,19 @@ export class EntrySettingsCorrespond {
     escarray_get(selector) {
         return this[`_${selector}`];
     }
+    // push_el<K extends ESCArrTypeList>(selector: K, el: any) {
+    //     const intendedtype = ESCArrMemberTypeListTypeMap[selector];
+    //     function pesky_typescript(el: any): el is typeof intendedtype {
+    //         if (!(el instanceof intendedtype)) {
+    //             throw new Error(`Pushed element type missmatch (${typeof selector}) with type of ${selector} (${intendedtype})`);
+    //         }
+    //         return true;
+    //     }
+    //     if (pesky_typescript(el)) {
+    //         this.els_to_escarray(el)
+    //         this[`_${selector}`].push()
+    //     }
+    // }
     validate_escs(...escs) {
         if (escs.length === 0) {
             escs = ["ent", "bttn", "channels", "sequences", "settings", "dnabars"];
@@ -197,7 +221,7 @@ export class EntrySettingsCorrespond {
     els_to_escarray(els) {
         return els.map((el) => {
             const seqid = el.dataset.seqid;
-            if (seqid === "undefined") {
+            if (seqid === undefined) {
                 throw new Error(`${el} doesn't have data-seqid property.`);
             }
             return {
@@ -206,9 +230,12 @@ export class EntrySettingsCorrespond {
             };
         });
     }
-    constructor(master, standard_settings, entries, settings_buttons, dnabars) {
+    constructor(master, standard_settings, entries, settings_buttons, dnabars, dnabars_base_width, dnabars_space_width, dnabars_baseblock_classes) {
         this.master = master;
         this.standard_settings = standard_settings;
+        this.dnabars_base_width = dnabars_base_width;
+        this.dnabars_space_width = dnabars_space_width;
+        this.dnabars_baseblock_classes = dnabars_baseblock_classes;
         this._ent = this.els_to_escarray(entries);
         this._bttn = this.els_to_escarray(settings_buttons);
         this._dnabars = this.els_to_escarray(dnabars);
@@ -217,6 +244,20 @@ export class EntrySettingsCorrespond {
         this._settings = [];
         this.dnabars = [];
         this.validate_escs("ent", "bttn", "dnabars");
+    }
+    push_entry(ent, bttn, reconstruct = false) {
+        this._ent.push(...this.els_to_escarray([ent]));
+        this._bttn.push(...this.els_to_escarray([bttn]));
+        if (reconstruct) {
+            this.construct();
+        }
+    }
+    remove_entry(ent_idx, bttn_idx, reconstruct = false) {
+        delete this._ent[ent_idx];
+        delete this._bttn[bttn_idx];
+        if (reconstruct) {
+            this.construct();
+        }
     }
     master_apply() {
         this.channels.forEach((ch, idx) => {
@@ -233,14 +274,13 @@ export class EntrySettingsCorrespond {
             dnabar.update_baseblocks();
         });
     }
-    construct(dnabars_base_width, dnabars_space_width, dnabars_baseblock_classes) {
+    construct() {
         this.validate_escs("ent", "bttn");
-        this.dnabars.forEach((dnabar) => { dnabar.terminate(true); });
+        this.dnabars.forEach((dnabar) => { dnabar.terminate(); });
         this.channels.forEach((ch) => { ch.terminate(); });
         this.sequences.forEach((seq) => { seq.clear(); });
         this._sequences.length = 0;
         this._channels.length = 0;
-        this._dnabars.length = 0;
         this.dnabars.length = 0;
         this.ent.map((_, i) => {
             const id = this._ent[i].id;
@@ -254,8 +294,7 @@ export class EntrySettingsCorrespond {
                 "el": new Sequence(this.master, ch),
                 "id": id
             };
-            const dnabar = new DNABar(this._dnabars[i].el, dnabars_base_width, dnabars_space_width, dnabars_baseblock_classes);
-            this._dnabars.push({ "id": id, "el": dnabar.bar });
+            const dnabar = new DNABar(this._dnabars[i].el, this.dnabars_base_width, this.dnabars_space_width, this.dnabars_baseblock_classes);
             this._channels.push({ "id": id, "el": ch });
             this._sequences.push(seq);
             this.dnabars.push(dnabar);
@@ -334,7 +373,12 @@ export class Playbar {
         const min = Number(this.playbar.min);
         const value = Number(this.playbar.value);
         const prog = (value - min) / (max - min) * 100;
-        this.playbar.style.setProperty("--progress", prog + "%");
+        if (this.playbar.parentElement) {
+            this.playbar.parentElement.style.setProperty("--progress", prog + "%");
+        }
+        else {
+            this.playbar.style.setProperty("--progress", prog + "%");
+        }
     }
     set(frac) {
         this.playbar.value = (frac * Number(this.playbar.max)).toString();

@@ -1,20 +1,32 @@
-import { DNABar, EntrySettingsCorrespond, Playbar, retrieve, retrieve_all } from "./components";
-import { ensure_acgt } from "./dna";
-import { UserSettings } from "./settings_container";
-import { create_periodic_wave, load_gcl_wavetable, load_reverb_convolver, Master, Sequence } from "./symphoner";
+import { DNABar, EntrySettingsCorrespond, Playbar, retrieve, retrieve_all } from "./components.js";
+import { ensure_acgt } from "./dna.js";
+import { UserSettings } from "./settings_container.js";
+import { create_periodic_wave, load_gcl_wavetable, load_reverb_convolver, Master, Sequence } from "./symphoner.js";
 
 const el_errbox = retrieve<HTMLElement>(".error");
+const el_errbox_close = retrieve<HTMLButtonElement>(".error button");
 const el_errmsg = retrieve<HTMLParagraphElement>(".error .notification-msg");
 const el_playbar = retrieve<HTMLInputElement>(".playbar");
 const el_playbttn = retrieve<HTMLButtonElement>(".playback-button");
+const el_add_sequence_button = retrieve<HTMLButtonElement>(".add-sequence-button");
+
+const el_mastersttg_bpm = retrieve<HTMLInputElement>("#mastersttg-bpm-field");
+const el_mastersttg_gain_field = retrieve<HTMLInputElement>("#mastersttg-gain-field");
+const el_mastersttg_gain_slider = retrieve<HTMLInputElement>("#mastersttg-gain-slider");
 
 const els_dnaentry_input: HTMLInputElement[] = [];
 const els_dnaentry_settings: HTMLButtonElement[] = [];
 const els_dnabars_parent: HTMLElement[] = [];
+const els_slider_wrappers: HTMLElement[] = [];
+const els_sliders: HTMLInputElement[] = []
+const els_standard_number_field: HTMLInputElement[] = [];
 
 retrieve_all(".dnaentry-input", els_dnaentry_input);
 retrieve_all(".dnaentry-settings", els_dnaentry_settings);
 retrieve_all(".dnabars-parent", els_dnabars_parent);
+retrieve_all(".slider-wrapper", els_slider_wrappers);
+retrieve_all(".slider-wrapper input", els_sliders);
+retrieve_all(".standard-number-field", els_standard_number_field);
 
 const master = new Master();
 const standard_settings = new UserSettings(
@@ -29,8 +41,9 @@ const entset = new EntrySettingsCorrespond(
     master, standard_settings,
     els_dnaentry_input,
     els_dnaentry_settings,
-    els_dnabars_parent
-
+    els_dnabars_parent,
+    1.32,
+    66
 )
 const playbar = new Playbar(el_playbar, master, entset);
 
@@ -69,6 +82,9 @@ function clean_dnaentry(dnaentry: string): string {
 
 function show_error(msg: string) {
     el_errbox.style.setProperty("display", "flex");
+    el_errbox.classList.remove("notification-panel-shake");
+    void el_errbox.offsetWidth;
+    el_errbox.classList.add("notification-panel-shake");
     el_errmsg.textContent = msg;
 }
 
@@ -77,14 +93,36 @@ function hide_error() {
 }
 
 function set_playbttn_form(playing: boolean) {
-    el_playbttn.classList.toggle("playbttn", playing);
-    el_playbttn.classList.toggle("pausebttn", !playing);
+    el_playbttn.classList.toggle("playbttn", !playing);
+    el_playbttn.classList.toggle("pausebttn", playing);
 }
+
+function update_slider(slider: HTMLInputElement, wrapper: HTMLElement) {
+    const max = Number(slider.max);
+    const min = Number(slider.min);
+    const value = Number(slider.value);
+    const prog = (value - min) / (max - min) * 100;
+    wrapper.style.setProperty("--progress", prog + "%");
+}
+
+els_sliders.forEach((slider, idx) => {
+    const wrapper = els_slider_wrappers[idx];
+
+    update_slider(slider, wrapper);
+    slider.addEventListener("input", () => {
+        update_slider(slider, wrapper);
+    })
+})
 
 
 // Listeners link
-playbar.update();
-el_playbar.addEventListener("input", () => {playbar.update()});
+// playbar.update();
+// el_playbar.addEventListener("input", () => {playbar.update()});
+el_errbox_close.onclick = hide_error;
+el_add_sequence_button.onclick = () => {
+    show_error("Sorry, but that button is under construction!");
+}
+
 el_playbar.addEventListener("pointerdown", () => {playbar.dragging = true});
 el_playbar.addEventListener("pointerup", () => {playbar.dragging = false});
 el_playbar.addEventListener("change", () => {
@@ -171,3 +209,72 @@ el_playbttn.onclick = async () => {
     playbar.tick();
     set_playbttn_form(true);
 }
+
+els_standard_number_field.forEach((field) => {
+    const isDecimal = field.classList.contains("decimal-field");
+
+    field.addEventListener("change", () => {
+        const n = isDecimal ? parseFloat(field.value) : parseInt(field.value, 10);
+        if (Number.isNaN(n)) return;
+
+        const min = field.min === "" ? -Infinity : Number(field.min);
+        const max = field.max === "" ? Infinity : Number(field.max);
+        field.value = String(Math.min(max, Math.max(min, n)));
+    });
+
+    field.addEventListener("beforeinput", (event: InputEvent) => {
+        if (!event.data) return;
+
+        const allowed = isDecimal ? /[^0-9.]/ : /[^0-9]/;
+        if (allowed.test(event.data)) {
+            event.preventDefault();
+            return;
+        }
+
+        if (isDecimal && event.data.includes(".") && field.value.includes(".")) {
+            event.preventDefault();
+        }
+    });
+});
+
+
+const map = (x: number, inMin: number, inMax: number, outMin: number, outMax: number) => {
+    return (x - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+}
+
+const syncRange = (from: HTMLInputElement, to: HTMLInputElement) => map(
+    Number(from.value),
+    Number(from.min), Number(from.max),
+    Number(to.min), Number(to.max)
+);
+
+const clamp = (x: number, lo: number, hi: number) => {
+    return Math.min(Math.max(x, lo), hi)
+};
+
+
+el_mastersttg_gain_field.addEventListener("change", () => {
+    const min = Number(el_mastersttg_gain_field.min);
+    const max = Number(el_mastersttg_gain_field.max);
+    const x = clamp(Number(el_mastersttg_gain_field.value) || 0, min, max);
+
+    el_mastersttg_gain_field.value = String(x);
+    el_mastersttg_gain_slider.value = String(syncRange(el_mastersttg_gain_field, el_mastersttg_gain_slider));
+    master.default_gain = x;
+
+    if (el_mastersttg_gain_slider.parentElement) {
+        update_slider(el_mastersttg_gain_slider, el_mastersttg_gain_slider.parentElement);
+    }
+});
+
+
+el_mastersttg_gain_slider.addEventListener("input", () => {
+  const mapped = Number(syncRange(el_mastersttg_gain_slider, el_mastersttg_gain_field).toFixed(3));
+
+  el_mastersttg_gain_field.value = String(mapped);
+  master.default_gain = mapped;
+});
+
+el_mastersttg_bpm.addEventListener("change", () => {
+    master.beattime = 60 / Number(el_mastersttg_bpm.value);
+})

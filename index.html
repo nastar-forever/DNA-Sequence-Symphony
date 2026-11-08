@@ -20,21 +20,21 @@
                 <div class="flex-row flex-wrap">
                     <button class="cellular-outline playback-button playbttn"></button>
                     <div class="slider-wrapper playbar-wrapper">
-                    <input value="0" min="0" max="1000" class="playbar" type="range">
+                        <input value="0" min="0" max="1000" class="playbar" type="range">
                     </div>
 
                     <div class="flex-row master-settings cellular-outline">
                         <div class="flex-row inline-setting">
                             <h3 class="row-title">BPM</h3>
-                            <input class="cellular-outline standard-number-field" type="number" min="1" max="999" value="240">
+                            <input id="mastersttg-bpm-field" class="cellular-outline standard-number-field" type="number" min="1" max="999" value="240">
                         </div>
 
 
                         <div class="flex-row inline-setting">
                             <h3 class="row-title">GAIN</h3>
-                            <input class="cellular-outline standard-number-field" min="0.001" value="0.2" max="1.0" type="number">
+                            <input id="mastersttg-gain-field" class="cellular-outline standard-number-field decimal-field" min="0.001" value="0.2" max="1.0" type="number">
                             <div class="slider-wrapper">
-                                <input value="200" min="0" max="1000" type="range">
+                                <input id="mastersttg-gain-slider" value="200" min="0" max="1000" type="range">
                             </div>
                         </div>
                     </div>
@@ -59,10 +59,10 @@
     </main>
 
     <div class="flex-row error notification">
-            <h1 class="row-title">lol!?</h1>
-            <p class="notification-msg">Error message should be displayed here. If not, something terrible is happening.</p>
-            <button class="close-button"></button>
-        </div>
+        <h1 class="row-title">huh!?</h1>
+        <p class="notification-msg">Error message should be displayed here. If not, something terrible is happening.</p>
+        <button class="close-button"></button>
+    </div>
 
     <footer>
         <p>Made for <a href="https://terra.hackclub.com">Terra</a>, by <a href="https://github.com/nastar-forever">@nastavial</a>

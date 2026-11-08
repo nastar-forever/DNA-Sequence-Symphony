@@ -30,7 +30,7 @@
                         </div>
 
 
-                        <div class="flex-row inline-setting">
+                        <div class="flex-row inline-setting field-slider-pair" data-fieldid="mastersttg-gain-field" data-sliderid="mastersttg-gain-slider">
                             <h3 class="row-title">GAIN</h3>
                             <input id="mastersttg-gain-field" class="cellular-outline standard-number-field decimal-field" min="0.001" value="0.2" max="1.0" type="number">
                             <div class="slider-wrapper">
@@ -55,6 +55,47 @@
             </div>
 
             <button class="add-sequence-button cellular-outline">+ Add Sequence</button>
+        </div>
+
+        <div id="settings-screenblur" class="screen-blur">
+            <div id="settings-screen" class="screen flex-column dna-dot-border">
+                <div class="flex-row screen-header">
+                    <h1 class="row-title">Settings</h1>
+                    <button id="settings-close" class="close-button"></button>
+                </div>
+
+                <form id="settings-form" class="screen-main-column flex-column">
+                    <div class="flex-row settings-row">
+                        <label for="sttg-wet-field" class="flex-column row-title">
+                            <div>Reverb wet gain</div>
+                            <div class="subtext">Can't exceed 1.0</div>
+                        </label>
+
+                        <div class="flex-row field-slider-pair" data-sliderid="sttg-wet-slider" data-fieldid="sttg-wet-field">
+                            <input id="sttg-wet-field" type="number" value="0.3" min="0.0" max="1.0" step="0.001" name="wet" class="cellular-outline standard-number-field decimal-field">
+                            <div class="slider-wrapper">
+                                <input id="sttg-wet-slider" type="range" value="300" min="0" max="1000">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="apply-button cellular-outline" id="settings-apply">Apply</button>
+                </form>
+            </div>
+
+            <div id="settings-unsaved-confirm-box" class="screen confirm-box flex-column dna-dot-border">
+                <div class="screen-header">
+                    <h1 class="row-title">Attention!</h1>
+                </div>
+
+                <div class="screen-main-column">
+                    <div>You have unapplied setting(s), continue to exit settings?</div>
+                    <div class="flex-row settings-row">
+                        <button class="cellular-outline settings-unsaved-button" id="settings-unsaved-cancel">Cancel</button>
+                        <button class="cellular-outline settings-unsaved-button" id="settings-unsaved-exit">Exit</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 

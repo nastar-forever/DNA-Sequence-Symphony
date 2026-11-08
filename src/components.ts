@@ -386,7 +386,7 @@ export class EntrySettingsCorrespond {
     
     construct() {
         this.validate_escs("ent", "bttn");
-        this.dnabars.forEach((dnabar) => {dnabar.terminate()});
+        this.dnabars.forEach((dnabar) => {dnabar.terminate(false)});
         this.channels.forEach((ch) => {ch.terminate()});
         this.sequences.forEach((seq) => {seq.clear()});
 

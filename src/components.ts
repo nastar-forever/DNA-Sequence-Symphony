@@ -386,7 +386,7 @@ export class EntrySettingsCorrespond {
     
     construct() {
         this.validate_escs("ent", "bttn");
-        this.dnabars.forEach((dnabar) => {dnabar.terminate(false)});
+        // this.dnabars.forEach((dnabar) => {dnabar.terminate(false)});
         this.channels.forEach((ch) => {ch.terminate()});
         this.sequences.forEach((seq) => {seq.clear()});
 
@@ -686,6 +686,7 @@ export class DNABar {
             // this.bar.removeChild(baseblock);
             baseblock.remove();
         });
+        this.baseblocks.length = 0;   // add this
 
         if (atomic) {
             this.bar.remove();

@@ -276,22 +276,12 @@ button:hover {
 .master-settings .standard-number-field {
     height: 2vh;
     width: 1.5vw;
-    font-size: 1.5vh;
+    font-size: 0.8vw;
     border-radius: 0.5vh;
 }
 
 .master-settings .decimal-field {
     width: 2.5vw;
-}
-
-.master-settings .standard-number-field::-webkit-inner-spin-button, .master-settings .standard-number-field::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-.master-settings .standard-number-field {
-    -moz-appearance: textfield;
-    appearance: textfield;
 }
 
 /* DNA ENTRY */
@@ -435,7 +425,7 @@ button:hover {
     width: 3vw;
     height: 3vh;
     font-family: var(--standard-fonts);
-    font-size: 2vh;
+    font-size: 1vw;
 }
 
 .decimal-field {
@@ -446,9 +436,14 @@ button:hover {
     margin-right: 1vw;
 }
 
-.field-slider-pair .standard-number-field::-webkit-inner-spin-button, .master-settings .standard-number-field::-webkit-outer-spin-button {
+.standard-number-field::-webkit-inner-spin-button, .standard-number-field::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
+}
+
+.standard-number-field {
+    -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 
